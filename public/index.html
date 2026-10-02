@@ -850,11 +850,11 @@ let G, FAST = false, SPEED = 1, GAME_ID = 0;
 const SEL = new Set(); // keys of hand cards the player has lifted
 
 function sleep(ms) {
-  if (FAST) return Promise.resolve();
+  if (FAST || NET && document.hidden) return Promise.resolve(); // online, a hidden page keeps up with the live game instead of animating for nobody
   const id = GAME_ID;
   return new Promise((ok, no) => { // the AI waits while the menu is open
     const tick = () => id !== GAME_ID ? no(ABORT) : MENU_OPEN ? setTimeout(tick, 250) : ok();
-    setTimeout(tick, ms * SPEED * (NET ? netHurry() : 1)); // online: a browser that fell behind catches up faster
+    setTimeout(tick, ms * SPEED * (NET ? netHurry() : 1)); // online: moves this browser missed fast-forward
   });
 }
 
@@ -4150,11 +4150,11 @@ function onlineMsg(m) {
     case 'hello': {
       if (m.reset || !NET) startOnline(m.cfg, m.events);
       else if ((m.len ?? Infinity) < NET.n + 1) resync(); // the server restarted from an older copy: rebuild from what it has
-      else m.events.forEach(ev => ingest(ev));
+      else m.events.forEach(ev => ingest(ev, true)); // moves missed while away
       if (m.chat) { ON.chat = m.chat; renderChat(); }
       break;
     }
-    case 'ev': if (NET) ingest(m.ev); break;
+    case 'ev': if (NET) ingest(m.ev, document.hidden); break;
     case 'reject': if (NET) resync(); break; // the server could not store one of my moves: take the shared version of the game
     case 'presence': ON.presence[m.seat] = m.online; if (NET) { if (G.players[m.seat]) toast(`${G.players[m.seat].name} ${m.online ? 'is back' : 'lost connection'}`); render(); } break;
     case 'chat': if (m.log) ON.chat = m.log; else { ON.chat.push(m.line); if (m.line.seat !== ON.seat) { ON.unread++; $('#bLog').classList.toggle('unread', !drawerOpen); } } renderChat(); break;
@@ -4268,7 +4268,7 @@ function startOnline(p, events) {
   MENU_OPEN = false;
   start({n: p.seats.length, trade: c.trade, sea: c.sea, ck: c.ck, scen: c.scen, friendly: c.friendly, events: c.events, harbormaster: c.harbormaster, diff: [], seats: p.seats, seed: p.seed, me: ON.seat, tutorial: null});
 }
-function ingest(ev) {
+function ingest(ev, late = false) { // late: a move that arrived while this page was away, so it may fast-forward
   if (ev.n <= NET.n) return; // already have it
   if (ev.n > NET.n + 1) return askLog(); // a gap: something went missing, fetch everything after the last move we have
   NET.n = ev.n;
@@ -4276,9 +4276,9 @@ function ingest(ev) {
   if (ev.k === 'dec') {
     const w = NET.decWait.get(ev.q);
     if (w) { NET.decWait.delete(ev.q); w(ev.v); }
-    else if (ev.q > NET.dseq && !NET.decBuf.has(ev.q)) NET.decBuf.set(ev.q, {v: ev.v, at: Date.now()}); // an answer we will need later
+    else if (ev.q > NET.dseq && !NET.decBuf.has(ev.q)) NET.decBuf.set(ev.q, {v: ev.v, late}); // an answer we will need later
     // otherwise a second answer to a settled question (say a late one after the AI took over): the first in the log counts
-  } else if (ev.k === 'cmd') { NET.cmdQ.push({...ev, at: Date.now()}); NET.cmdWake?.(); }
+  } else if (ev.k === 'cmd') { NET.cmdQ.push({...ev, late}); NET.cmdWake?.(); }
 }
 function askLog() { // ask the server for every move after the last one we have; one request at a time
   if (Date.now() - NET.asked < 1500) return;
@@ -4301,13 +4301,12 @@ function netSend(ev, played = true) { // played: this browser already ran it; ot
   if (played) NET.mine.add(ev.mid);
   sendWS({t: 'ev', ev});
 }
-// How far behind the live game this browser is: moves that arrived a while ago and are still waiting their turn here
-// (a phone that slept, a slower speed setting). Pauses shrink until it catches up; the game itself is unchanged.
+// Pauses shrink only while this browser works through moves it missed (a phone that slept, a reconnect), so it rejoins
+// the live game quickly. Moves that arrive while the player watches always play at the speed they chose, even when
+// other browsers run at a faster setting.
 function netHurry() {
   if (!NET || NET.replay) return 1;
-  let oldest = NET.cmdQ.length ? NET.cmdQ[0].at : Infinity;
-  for (const d of NET.decBuf.values()) oldest = Math.min(oldest, d.at);
-  return Date.now() - oldest > 2500 ? 0.25 : 1;
+  return NET.cmdQ.some(e => e.late) || [...NET.decBuf.values()].some(d => d.late) ? 0.15 : 1;
 }
 function goLive() {
   if (!NET?.replay) return;
