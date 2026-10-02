@@ -32,7 +32,7 @@ select{font:500 13px Fredoka,sans-serif;color:var(--ink);background:rgba(255,255
 select option{background:#0b2a3d}
 
 /* ---------- table ---------- */
-.table{position:relative;isolation:isolate;overflow:hidden;height:100%;min-height:640px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+.table{position:relative;isolation:isolate;overflow:hidden;height:100%;min-height:640px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;
   background:radial-gradient(120% 90% at 50% 42%,#18668a 0%,#0c3b57 46%,#051624 100%)}
 .table::before{content:"";position:absolute;inset:-60%;z-index:-1;pointer-events:none;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.04) 0 7deg,transparent 7deg 20deg);animation:spin 160s linear infinite}
 .table::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(0,0,0,.5) 100%)}
@@ -271,11 +271,19 @@ select option{background:#0b2a3d}
 .hcard.devc.playable .front{box-shadow:0 0 20px rgba(196,160,255,.95),0 8px 18px rgba(0,0,0,.45)}
 .hcard.devc.fresh{filter:saturate(.5) brightness(.8)}
 .hcard.drag{transition:none;z-index:400!important;cursor:grabbing;--r:0deg!important;--lift:0px!important}
-.hcard.leave{opacity:0;--lift:130px!important;pointer-events:none}
-.hcard.enter>.card{animation:cardIn calc(.6s * var(--a)) cubic-bezier(.2,.9,.3,1.2) calc(.5s * var(--a)) backwards}
+.hcard.drag.follow{transition:transform calc(.22s * var(--a)) cubic-bezier(.2,.8,.3,1);z-index:399!important}
+.hcard.drag .face{box-shadow:0 0 0 3px var(--gold),0 18px 30px rgba(0,0,0,.55)}
+.hcard.drag:not(.follow)>.card{transform:scale(1.08) rotate(-3deg)}
+.dragn{position:absolute;top:-12px;right:-12px;z-index:5;min-width:30px;height:30px;padding:0 8px;border-radius:999px;display:grid;place-items:center;background:var(--gold);color:#3a2605;font:700 15px Fredoka,sans-serif;box-shadow:0 3px 8px rgba(0,0,0,.5);animation:pop .35s;pointer-events:none}
+.hcard.leave{opacity:0;--lift:170px!important;scale:.55;pointer-events:none;transition:transform calc(.55s * var(--a)) cubic-bezier(.5,-.3,.6,1),opacity calc(.5s * var(--a)) ease-in,scale calc(.55s * var(--a)) ease-in}
+.hcard.leave>.card{transform:rotateY(180deg) rotate(14deg);transition:transform calc(.5s * var(--a)) ease-in}
+.hcard.enter>.card{animation:cardIn calc(.8s * var(--a)) cubic-bezier(.2,.9,.3,1.15) calc((.45s + var(--k,0) * .09s) * var(--a)) backwards}
+.hcard.enter .face.front{animation:cardGlow calc(1.4s * var(--a)) calc((.75s + var(--k,0) * .09s) * var(--a)) ease-out backwards}
 .hcard.devc.enter>.card{animation-name:flipIn;animation-duration:calc(1s * var(--a))}
+.hcard.sel{transition:transform calc(.45s * var(--a)) cubic-bezier(.2,1.6,.4,1),opacity .35s,filter .25s}
 .hcard.shake>.card{animation:shake .45s}
-@keyframes cardIn{from{transform:translateY(-170px) scale(.45) rotate(-18deg);opacity:0}}
+@keyframes cardIn{0%{transform:translateY(-200px) scale(.4) rotateY(180deg) rotate(-22deg);opacity:0}40%{opacity:1}60%{transform:translateY(-34px) scale(1.12) rotateY(0deg) rotate(5deg)}82%{transform:translateY(5px) scale(.97) rotate(-1deg)}100%{transform:none}}
+@keyframes cardGlow{0%{box-shadow:0 0 0 3px #fff3c0,0 0 34px 10px rgba(255,225,130,.95),0 8px 18px rgba(0,0,0,.45)}100%{box-shadow:0 8px 18px rgba(0,0,0,.45)}}
 @keyframes flipIn{0%{transform:translateY(-170px) scale(.5) rotateY(180deg);opacity:0}45%{transform:translateY(-60px) scale(1.12) rotateY(180deg);opacity:1}100%{transform:none}}
 @keyframes shake{0%,100%{transform:none}20%{transform:translateX(-9px) rotate(-4deg)}40%{transform:translateX(8px) rotate(3deg)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
 .mcard{width:36px;height:50px;border-radius:6px;display:grid;place-items:center;color:#fff8e6;border:2px solid #fff4d8;background:linear-gradient(160deg,var(--c1),var(--c2));box-shadow:0 6px 14px rgba(0,0,0,.5);position:relative}
@@ -284,6 +292,42 @@ select option{background:#0b2a3d}
 .mcard.back::before{content:"";position:absolute;inset:25% 18%;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(160deg,#ffe08a,#c78b25)}
 .flyer{position:fixed;left:0;top:0;z-index:80;pointer-events:none}
 .flyer>*{translate:-50% -50%}
+
+/* ---------- action card reveal ---------- */
+.reveal{position:fixed;inset:0;z-index:58;display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));overflow:auto;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--pc) 28%,rgba(2,10,16,.55)),rgba(2,10,16,.86) 70%);backdrop-filter:blur(4px);animation:fadeIn .3s both}
+.reveal.me{cursor:pointer}
+.reveal.wait,.reveal.ai{cursor:default}
+.reveal.out{animation:rvOut .4s ease-in both;pointer-events:none}
+@keyframes rvOut{to{opacity:0;transform:scale(1.04)}}
+.reveal:focus{outline:none}
+.rv-rays{position:absolute;left:50%;top:40%;width:min(150vmin,1100px);aspect-ratio:1;translate:-50% -50%;pointer-events:none;background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--pc) 30%,transparent) 0 6deg,transparent 6deg 18deg);-webkit-mask:radial-gradient(circle,#000 0,transparent 62%);mask:radial-gradient(circle,#000 0,transparent 62%);animation:spin 40s linear infinite,fadeIn 1s both}
+.rv-box{position:relative;width:min(440px,100%);display:grid;justify-items:center;gap:6px;text-align:center}
+.rv-who{display:flex;align-items:center;gap:10px;padding:6px 14px 6px 6px;border-radius:999px;background:rgba(4,18,28,.7);border:1px solid var(--line);font:500 clamp(14px,3.6vw,17px) Fredoka,sans-serif;animation:rvUp .45s .1s both}
+.rv-who .avatar{--s:34px;font-size:15px;border-width:2px}
+.rv-flip{perspective:900px;margin:8px 0 4px}
+.rv-card{--c1:var(--dev-1);--c2:var(--dev-2);position:relative;width:clamp(120px,34vmin,190px);aspect-ratio:5/7;border-radius:16px;border:4px solid #f1e3ff;overflow:hidden;background:radial-gradient(circle at 50% 36%,rgba(255,255,255,.32),transparent 62%),repeating-linear-gradient(45deg,rgba(255,255,255,.06) 0 7px,transparent 7px 14px),linear-gradient(160deg,var(--c1),var(--c2));
+  box-shadow:0 0 0 2px rgba(0,0,0,.25),0 0 50px color-mix(in srgb,var(--c1) 70%,transparent),0 24px 50px rgba(0,0,0,.6);transform-style:preserve-3d;animation:rvIn calc(1.1s * var(--a)) cubic-bezier(.2,.85,.25,1.15) both,rvFloat 3.2s 1.2s ease-in-out infinite}
+.rv-card.vp{--c1:var(--vp-1);--c2:var(--vp-2);border-color:#fff1c4}
+.rv-card.prog{border-color:#fff1cf}
+.rv-card.science{--c1:#52a661;--c2:#1a522b}.rv-card.trade{--c1:#ebb62b;--c2:#8e5f07}.rv-card.politics{--c1:#5a86e4;--c2:#1c3a86}
+.rv-card::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);transform:translateX(-120%);animation:rvShine 2.6s 1s ease-in-out infinite}
+.rv-art{position:absolute;inset:10% 12% 26%;display:grid;place-items:center}
+.rv-art svg{width:78%;height:78%;color:#fff8e6;filter:drop-shadow(0 5px 6px rgba(0,0,0,.45))}
+.rv-ribbon{position:absolute;left:8px;right:8px;bottom:9px;padding:5px 4px;border-radius:7px;background:rgba(0,0,0,.35);font:600 clamp(10px,2.6vmin,13px) Fredoka,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#fff8e6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rv-name{margin:4px 0 0;font:700 clamp(26px,7vw,40px)/1.05 Fredoka,sans-serif;color:var(--gold);text-shadow:0 3px 0 rgba(0,0,0,.35);text-wrap:balance;animation:rvUp .5s calc(.55s * var(--a)) both}
+.rv-type{font:600 12px Fredoka,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);animation:rvUp .5s calc(.65s * var(--a)) both}
+.rv-text{margin:6px 0 4px;padding:12px 16px;border-radius:16px;background:rgba(4,18,28,.72);border:1px solid var(--line);font-size:clamp(15px,4vw,18px);line-height:1.45;text-wrap:pretty;animation:rvUp .5s calc(.8s * var(--a)) both}
+.rv-foot{font:500 14px Fredoka,sans-serif;color:var(--muted);animation:rvUp .5s calc(1s * var(--a)) both}
+.rv-foot.tap{color:var(--ink);animation:rvUp .5s calc(1s * var(--a)) both,blink 1s 1.6s ease-in-out infinite alternate}
+.rv-timer{width:min(220px,70%);height:4px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}
+.rv-timer i{display:block;height:100%;background:var(--gold);transform-origin:left;animation:rvTimer var(--ms) linear both}
+@keyframes rvIn{0%{transform:translate(var(--fx),var(--fy)) scale(.2) rotateY(180deg) rotate(-20deg);opacity:0}35%{opacity:1}70%{transform:translate(0,-10px) scale(1.12) rotateY(-12deg) rotate(2deg)}100%{transform:none}}
+@keyframes rvFloat{50%{transform:translateY(-6px) rotate(-1deg)}}
+@keyframes rvShine{0%{transform:translateX(-120%)}55%,100%{transform:translateX(120%)}}
+@keyframes rvUp{from{opacity:0;transform:translateY(14px)}}
+@keyframes rvTimer{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@media (max-height:560px){.rv-card{width:clamp(90px,26vmin,130px)}.rv-text{padding:8px 12px;font-size:14px}.rv-name{font-size:24px}}
+@media (prefers-reduced-motion:reduce){.rv-rays,.rv-card,.rv-card::after{animation:none!important}}
 
 /* ---------- modal ---------- */
 .modal{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(2,10,16,.6);backdrop-filter:blur(3px);animation:fadeIn .25s}
@@ -521,6 +565,127 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .cardrow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px}
 .cardrow .cardbox{--cw:54px}
 #status #bTakeover{margin-left:8px}
+/* ---------- responsive: nothing may run off the screen, on any phone, tablet or desktop ---------- */
+.sname{flex-wrap:wrap;row-gap:2px;min-width:0}
+.sname .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tagai{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.tools{flex-wrap:wrap;min-width:0}
+.status>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
+.status .btn{flex:none}
+.topbar>*{min-width:0}
+.banner{max-width:calc(100% - 16px);white-space:normal;text-align:center;text-wrap:balance}
+.toast{max-width:calc(100vw - 24px);white-space:normal;text-align:center}
+.selbar{max-width:calc(100vw - 16px);white-space:normal}
+.barb{max-width:calc(100% - 8px);white-space:normal;flex-wrap:wrap;justify-content:center}
+.modal-box{max-height:calc(100dvh - 24px)}
+.lseat .txt{width:min(150px,100%)}
+.lseat select{max-width:100%;min-width:0}
+.joinrow .txt.code{flex:none}
+@media (max-width:860px){
+  #bExitFull{top:max(8px,env(safe-area-inset-top));right:8px;min-height:40px;min-width:40px;padding:8px 12px;font-size:13px}
+  .topbar{padding:8px 10px 4px;gap:6px 8px}
+  .status{flex:1 1 100%;order:3;font-size:14px;min-height:36px;padding:4px 6px 4px 12px}
+  .tools{gap:6px}
+  .seat .sname{font-size:14px}
+  .seat .tagai{font-size:9px;padding:1px 5px}
+  .mid{padding-inline:10px}
+  .bottom{padding:44px 10px 10px}
+}
+@media (min-width:861px) and (max-width:1300px){
+  .seats.left .seat,.seats.right .seat{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"av vp" "info info" "fans fans" "count count";gap:4px 8px}
+}
+@media (min-width:601px) and (max-width:860px){
+  .bottom{grid-template-columns:minmax(0,1fr) minmax(300px,1.3fr);align-items:stretch}
+  .handwrap{grid-column:1 / -1}
+  .seat .fans{display:none}
+  .board-cell{aspect-ratio:auto;height:min(calc((100vw - 20px) / var(--ar,1.15)),max(360px,calc(100dvh - 600px)))}
+}
+@media (max-width:600px){
+  .brand small{display:none}
+  .brand h1{font-size:18px}
+  .brand svg{width:28px;height:28px}
+  .tools label[for=speed]{display:none}
+  .tools .btn.sm{padding:6px 8px;font-size:12px}
+  .tools select{padding:5px 6px;font-size:12px}
+  .bank{padding:4px 8px;font-size:12px;gap:5px}
+  .seat,.seats.top .seat{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"av vp" "info info" "count count";padding:6px 8px}
+  .seat .fans{display:none}
+  .seat .meta{gap:0 6px}
+  .seat .avatar{--s:30px;font-size:13px}
+  .seat .vp b{font-size:20px}
+  .seat .vp small{font-size:8px}
+  #me{padding:8px 10px}
+  #me .meta{font-size:12px}
+  .actions{padding:8px;gap:6px}
+  .bbtn .lbl{font-size:11px}
+  .btn.big{font-size:16px;padding:13px 16px}
+  .mview{padding:18px 14px}
+  .mview h2{font-size:24px}
+  .modal-box{padding:16px 14px}
+  .modes button small{display:none}
+  .joinrow .btn.big{padding-inline:14px}
+  #bExitFull .xl{display:none}
+}
+@media (max-width:360px){
+  .builds,.builds.sea{gap:4px}
+  .bbtn{padding:6px 2px 5px}
+  .arow .btn{padding-inline:8px}
+}
+/* phones held sideways: board on the left, my hand and buttons on the right, no page scrolling */
+@media (max-height:520px) and (orientation:landscape){
+  body{overflow:hidden}
+  .table{height:100dvh;min-height:0;grid-template-columns:minmax(0,1fr) minmax(250px,34%);grid-template-rows:auto minmax(0,1fr)}
+  .topbar{grid-column:1 / -1;flex-wrap:nowrap;padding:max(4px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 2px max(8px,env(safe-area-inset-left));gap:6px}
+  .brand div,.bank,.tools label[for=speed]{display:none}
+  .brand svg{width:26px;height:26px}
+  .status{flex:1 1 auto;order:0;min-height:30px;font-size:13px;padding:2px 4px 2px 10px}
+  .status>span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tools{flex-wrap:nowrap}
+  .tools .btn.sm{padding:5px 7px;font-size:12px}
+  .tools select{padding:4px 5px;font-size:12px}
+  .mid{grid-column:1;grid-row:2;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;padding:2px 4px 4px max(6px,env(safe-area-inset-left));min-height:0}
+  .seats{display:contents}
+  .seat,.seats.top .seat{flex:1 1 0;min-width:0;height:44px;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"av info vp";padding:3px 8px;gap:0 6px;border-radius:12px;transform:none!important}
+  .seat .avatar{--s:28px;font-size:12px;border-width:2px}
+  .seat .fans,.seat .meta,.seat .count,.seat .badges{display:none}
+  .seat .sname{font-size:13px}
+  .seat .vp b{font-size:18px}.seat .vp small{display:none}
+  .active .avatar::after{inset:-5px;border-width:2px}
+  .board-cell{flex:1 1 100%;order:10;height:calc(100% - 48px);aspect-ratio:auto}
+  .ticker li:not(:first-child){display:none}
+  .ticker li{font-size:11px}
+  .table.focus .mid{display:block}
+  .table.focus .board-cell{height:100%}
+  .bottom{grid-column:2;grid-row:2;grid-template-columns:minmax(0,1fr);align-content:end;gap:4px;padding:30px max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) 4px;min-height:0}
+  #me{padding:6px 8px;grid-template-columns:auto minmax(0,1fr) auto}
+  #me .avatar{--s:34px;font-size:15px}
+  #me .meta{font-size:11px}
+  .handwrap{order:-1;height:104px}
+  :root{--cw:54px;--ch:78px}
+  .front .dx{display:none}
+  .actions{position:static;padding:6px;gap:5px;background:var(--glass);border-radius:14px}
+  .die{width:30px;height:30px}.evd{width:30px;height:30px}
+  .dsum{font-size:20px;min-width:24px}
+  .arow .btn{padding:8px}
+  .bbtn{padding:4px 2px}.bbtn>svg{width:20px;height:20px}.bbtn .lbl{font-size:10.5px}
+  #bEnd{padding:8px}
+  .banner{font-size:22px;padding:8px 18px}.banner.big{font-size:28px}.banner.sm{font-size:16px}
+  .zoom .btn{min-width:38px;min-height:36px;font-size:15px}
+  .coach{width:min(300px,calc(100% - 8px));padding:10px 12px}.coach p{font-size:13.5px}
+  .menu{padding:10px}
+  .mview{padding:16px}
+  .hero{padding:0}.hero-logo{width:56px;height:56px}.hero h1{font-size:30px;margin:4px 0}.hero p{font-size:14px}
+  .menu-actions{grid-template-columns:repeat(2,minmax(0,1fr));max-width:520px;margin:12px auto 6px}
+  .btn.big{font-size:15px;padding:11px 14px}
+}
+.actions,.arow,.builds{min-width:0}
+.arow .btn{min-width:0;padding-inline:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:lang(es) .front .ribbon{letter-spacing:0;font-size:9px}
+:lang(es) .lcard .ribbon,:lang(es) .cardbox .ribbon{font-size:8px;letter-spacing:0}
+@media (max-height:520px) and (orientation:landscape){.deckn{right:0}}
+.langseg{justify-content:center;margin:4px auto 0}
+.langseg button{font-size:14px;min-width:0;padding:6px 14px}
+:lang(es) .seat.offline .tagai::after{content:" · desconectado"}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -561,8 +726,9 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <div class="status" id="status" aria-live="polite"></div>
     <div class="bank" id="bank" title="Cards left in the bank"></div>
     <div class="tools">
+      <select id="langSel" aria-label="Language" title="Language" data-notr><option value="en">EN</option><option value="es">ES</option></select>
       <label for="speed">Speed</label>
-      <select id="speed"><option value="1.7">Slow</option><option value="1" selected>Normal</option><option value="0.5">Fast</option><option value="0.12">Turbo</option></select>
+      <select id="speed"><option value="2.6">Very slow</option><option value="1.7">Slow</option><option value="1" selected>Normal</option><option value="0.5">Fast</option><option value="0.12">Turbo</option></select>
       <button class="btn sm" id="bLog">Chronicle</button>
       <button class="btn sm" id="bMenu">Menu</button>
       <button class="btn sm" id="bFull" hidden aria-pressed="false">Fullscreen</button>
@@ -634,7 +800,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   </footer>
 </div>
 <aside class="drawer" id="drawer" aria-label="Chronicle"><header><h2>Chronicle</h2><button class="btn sm" id="bLogClose">Close</button></header><ol id="log"></ol><div class="chatbox game" id="gChatBox" hidden><h3>Table chat</h3><ol id="gChatLog"></ol><form id="gChatForm" autocomplete="off"><input class="txt" id="gChatIn" maxlength="300" placeholder="Say something…" aria-label="Chat message"><button class="btn sm">Send</button></form></div></aside>
-<button class="btn gold" id="bExitFull" hidden aria-label="Exit fullscreen">✕ Exit fullscreen</button>
+<button class="btn gold" id="bExitFull" hidden aria-label="Exit fullscreen">✕<span class="xl"> Exit fullscreen</span></button>
 <div class="menu" id="menu">
   <div class="menu-inner">
     <section class="mview" data-view="home">
@@ -647,6 +813,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
         <button class="btn big" data-go="learn">Tutorials &amp; rules</button>
         <button class="btn" id="mLeaveOn" hidden>Leave online game</button>
       </div>
+      <div class="seg langseg" role="radiogroup" aria-label="Language" data-notr><button data-lang="en" role="radio">English</button><button data-lang="es" role="radio">Español</button></div>
       <p class="fine">Unofficial fan clone of the CATAN board game rules. Not affiliated with CATAN GmbH.</p>
     </section>
     <section class="mview" data-view="setup" hidden>
@@ -701,6 +868,1226 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 <div class="modal" id="modal" hidden><div class="modal-box" id="modalBox" role="dialog" aria-modal="true"></div></div>
 
 <script>
+// ===== i18n-es BEGIN: Spanish for everything the page shows (used by tr() below) =====
+window.ES_EXACT = {
+// ---------- top bar, board, hand, buttons ----------
+"Unofficial CATAN clone · first to 10 VP": "Clon no oficial de CATAN · gana con 10 PV",
+"Cards left in the bank": "Cartas que quedan en el banco",
+"Language": "Idioma",
+"Speed": "Velocidad",
+"Very slow": "Muy lenta",
+"Slow": "Lenta",
+"Normal": "Normal",
+"Fast": "Rápida",
+"Turbo": "Turbo",
+"Chronicle": "Crónica",
+"Menu": "Menú",
+"Fullscreen": "Pantalla completa",
+"Exit fullscreen": "Salir de pantalla completa",
+"✕ Exit fullscreen": "✕ Salir de pantalla completa",
+"Fullscreen is blocked here. Try opening the game in its own tab.": "Aquí no se puede usar pantalla completa. Abre el juego en su propia pestaña.",
+"Island board seen from above": "Tablero de la isla visto desde arriba",
+"End tutorial": "Terminar tutorial",
+"Next": "Siguiente",
+"Finish": "Terminar",
+"Board zoom": "Zoom del tablero",
+"Zoom in": "Acercar",
+"Zoom out": "Alejar",
+"Fit": "Ajustar",
+"Bigger board": "Tablero más grande",
+"Hide the player panels for a bigger board": "Oculta los paneles de jugadores para agrandar el tablero",
+"Your hand is empty. Resources arrive when the dice hit your numbers.": "Tu mano está vacía. Los recursos llegan cuando los dados sacan tus números.",
+"Your cards": "Tus cartas",
+"Roll the dice": "Tira los dados",
+"Event die": "Dado de eventos",
+"Event die: barbarian ship": "Dado de eventos: barco bárbaro",
+"Event die: Trade gate": "Dado de eventos: puerta de comercio",
+"Event die: Politics gate": "Dado de eventos: puerta de política",
+"Event die: Science gate": "Dado de eventos: puerta de ciencia",
+"Roll": "Tirar",
+"Trade": "Comercio",
+"Road": "Camino",
+"Settle": "Poblado",
+"City": "Ciudad",
+"Ship": "Barco",
+"Sail": "Navegar",
+"free": "gratis",
+"Wall": "Muralla",
+"Knights": "Caballeros",
+"Improve": "Mejorar",
+"Card": "Carta",
+"End turn": "Terminar turno",
+"End paired turn": "Terminar turno en pareja",
+"Road: 1 brick + 1 lumber": "Camino: 1 arcilla + 1 madera",
+"Settlement: brick, lumber, wool, grain": "Poblado: arcilla, madera, lana, trigo",
+"City: 2 grain + 3 ore": "Ciudad: 2 trigo + 3 mineral",
+"Ship: 1 lumber + 1 wool": "Barco: 1 madera + 1 lana",
+"Move one ship from the open end of a route (once per turn)": "Mueve un barco del extremo abierto de una ruta (una vez por turno)",
+"City wall: 2 brick. Each wall lets you hold 2 more cards when a 7 is rolled": "Muralla: 2 arcilla. Cada muralla te deja guardar 2 cartas más cuando sale un 7",
+"Recruit, promote, activate and use knights": "Recluta, asciende, activa y usa caballeros",
+"City improvements, paid with commodities": "Mejoras de ciudad, pagadas con mercancías",
+"Development card: wool, grain, ore": "Carta de desarrollo: lana, trigo, mineral",
+"Close": "Cerrar",
+"Table chat": "Chat de la mesa",
+"Say something…": "Escribe algo…",
+"Chat message": "Mensaje del chat",
+"Send": "Enviar",
+"Cancel": "Cancelar",
+"Confirm": "Confirmar",
+"Choose": "Elige",
+"Barbarians": "Bárbaros",
+"VP": "PV",
+"Player": "Jugador",
+"Includes your secret Victory Point cards": "Incluye tus cartas secretas de Punto de victoria",
+"City improvements: trade, politics, science": "Mejoras de ciudad: comercio, política, ciencia",
+"Largest Army": "Gran Ejército",
+"Longest Road": "Camino más largo",
+"Longest Trade Route": "Ruta comercial más larga",
+"Robber": "Ladrón",
+"Pirate ship": "Barco pirata",
+"ANY": "TODO",
+"Harbor: trade 3 identical resources for 1": "Puerto: cambia 3 recursos iguales por 1",
+"Your turn": "Tu turno",
+"Your paired turn": "Tu turno en pareja",
+"Resolving…": "Resolviendo…",
+"Your turn: roll the dice (a development card may be played first)": "Tu turno: tira los dados (antes puedes jugar una carta de desarrollo)",
+"Your turn: roll the dice (an Alchemist may be played first)": "Tu turno: tira los dados (antes puedes jugar un Alquimista)",
+"Paired turn: trade with the bank, build or play a card. No dice and no player trades.": "Turno en pareja: comercia con el banco, construye o juega una carta. Sin dados ni comercio entre jugadores.",
+"Movement phase: sail your other ships, then end your turn": "Fase de movimiento: navega con tus otros barcos y termina tu turno",
+"Build, trade or play a card, then end your turn": "Construye, comercia o juega una carta y luego termina tu turno",
+"You won! Start a new game whenever you like.": "¡Ganaste! Empieza otra partida cuando quieras.",
+"Waiting for the other players to answer your offer…": "Esperando a que los demás respondan tu oferta…",
+"Victory Point cards score automatically": "Las cartas de Punto de victoria cuentan solas",
+"Wait for your turn": "Espera tu turno",
+"Bought this turn: play it next turn": "Comprada este turno: juégala el próximo",
+"Only one development card per turn": "Solo una carta de desarrollo por turno",
+"No legal spot for a road right now": "Ahora no hay sitio válido para un camino",
+"Finish the current action first": "Termina antes la acción en curso",
+"Progress cards are played on your own turn": "Las cartas de progreso se juegan en tu turno",
+"Nothing to do yet": "Todavía no hace nada",
+"The Alchemist must be played before you roll": "El Alquimista se juega antes de tirar",
+"Roll first (only the Alchemist comes before the dice)": "Tira primero (solo el Alquimista va antes de los dados)",
+"Release to mark for discard": "Suelta para marcarla para descartar",
+"Release to trade this card": "Suelta para comerciar esta carta",
+"Roll the dice first": "Primero tira los dados",
+"You can trade on your own turn": "Puedes comerciar en tu turno",
+"Nobody accepted your offer": "Nadie aceptó tu oferta",
+"Back online": "De nuevo en línea",
+"Connection lost. Reconnecting…": "Se perdió la conexión. Reconectando…",
+"Victory!": "¡Victoria!",
+"You": "Tú",
+"you": "tú",
+// colors (also the AI players' names)
+"Blue": "Azul",
+"Red": "Rojo",
+"Orange": "Naranja",
+"White": "Blanco",
+"Green": "Verde",
+"Brown": "Marrón",
+// ---------- resources, terrain, cards ----------
+"Brick": "Arcilla",
+"Lumber": "Madera",
+"Wool": "Lana",
+"Grain": "Trigo",
+"Ore": "Mineral",
+"Paper": "Papel",
+"Cloth": "Tela",
+"Coin": "Moneda",
+"Politics": "Política",
+"Science": "Ciencia",
+"Hills": "Colinas",
+"Forest": "Bosque",
+"Pasture": "Pasto",
+"Fields": "Campos",
+"Mountains": "Montañas",
+"Desert": "Desierto",
+"Gold field": "Campo de oro",
+"Sea": "Mar",
+"Lake": "Lago",
+"Swamp": "Pantano",
+"Oasis": "Oasis",
+"Castle": "Castillo",
+"Quarry": "Cantera",
+"Glassworks": "Vidriería",
+"Spice island": "Isla de especias",
+"Fish shoal": "Banco de peces",
+"Knight": "Caballero",
+"Victory Point": "Punto de victoria",
+"Road Building": "Construcción de caminos",
+"Year of Plenty": "Año de abundancia",
+"Monopoly": "Monopolio",
+"Swift Journey": "Viaje veloz",
+"Move a barbarian; on a road, rob its owner": "Mueve un bárbaro; si cae en un camino, roba a su dueño",
+"Move your wagon a second time": "Mueve tu carreta otra vez",
+"Move the robber and steal a card": "Mueve al ladrón y roba una carta",
+"Worth 1 victory point": "Vale 1 punto de victoria",
+"Build 2 roads for free": "Construye 2 caminos gratis",
+"Take any 2 resources": "Toma 2 recursos cualesquiera",
+"Take every card of one type": "Quédate con todas las cartas de un tipo",
+"Library": "Biblioteca",
+"Market": "Mercado",
+"Chapel": "Capilla",
+"University": "Universidad",
+"Great Hall": "Gran Salón",
+"Development card": "Carta de desarrollo",
+// progress cards
+"Alchemist": "Alquimista",
+"Crane": "Grúa",
+"Engineer": "Ingeniero",
+"Inventor": "Inventor",
+"Irrigation": "Irrigación",
+"Medicine": "Medicina",
+"Mining": "Minería",
+"Printer": "Imprenta",
+"Smith": "Herrero",
+"Commercial Harbor": "Puerto comercial",
+"Master Merchant": "Maestro mercader",
+"Merchant": "Mercader",
+"Merchant Fleet": "Flota mercante",
+"Resource Monopoly": "Monopolio de recursos",
+"Trade Monopoly": "Monopolio comercial",
+"Bishop": "Obispo",
+"Constitution": "Constitución",
+"Deserter": "Desertor",
+"Diplomat": "Diplomático",
+"Intrigue": "Intriga",
+"Saboteur": "Saboteador",
+"Spy": "Espía",
+"Warlord": "Señor de la guerra",
+"Wedding": "Boda",
+"Play before rolling: choose the red and yellow dice results.": "Juégala antes de tirar: eliges el resultado de los dados rojo y amarillo.",
+"Your next city improvement this turn costs 1 commodity less.": "Tu próxima mejora de ciudad este turno cuesta 1 mercancía menos.",
+"Build a city wall for free.": "Construye una muralla gratis.",
+"Swap two number discs (not 2, 6, 8 or 12).": "Intercambia dos fichas de número (no 2, 6, 8 ni 12).",
+"Take 2 grain for each fields tile next to your buildings.": "Toma 2 trigo por cada campo junto a tus construcciones.",
+"Upgrade a settlement to a city for 2 ore + 1 grain.": "Mejora un poblado a ciudad por 2 mineral + 1 trigo.",
+"Take 2 ore for each mountains tile next to your buildings.": "Toma 2 mineral por cada montaña junto a tus construcciones.",
+"1 victory point, shown at once.": "1 punto de victoria, se muestra enseguida.",
+"Build 2 roads (or ships) for free.": "Construye 2 caminos (o barcos) gratis.",
+"Promote up to 2 knights for free.": "Asciende gratis hasta 2 caballeros.",
+"Offer each opponent a resource; each must give you a commodity for it.": "Ofrece un recurso a cada rival; cada uno debe darte una mercancía a cambio.",
+"Look at the hand of a player with more points and take 2 cards.": "Mira la mano de un jugador con más puntos y toma 2 cartas.",
+"Place the merchant next to your building: trade that resource 2:1 and hold 1 VP.": "Pon al mercader junto a tu construcción: cambias ese recurso 2:1 y tienes 1 PV.",
+"This turn, trade one kind of card 2:1 with the bank.": "Este turno, cambia un tipo de carta 2:1 con el banco.",
+"Name a resource: each opponent gives you up to 2 of it.": "Nombra un recurso: cada rival te da hasta 2.",
+"Name a commodity: each opponent gives you 1 of it.": "Nombra una mercancía: cada rival te da 1.",
+"Move the robber and steal 1 card from every player next to it.": "Mueve al ladrón y roba 1 carta a cada jugador a su lado.",
+"An opponent removes one knight; you place one of equal strength for free.": "Un rival retira un caballero; tú pones gratis uno de igual fuerza.",
+"Remove an open road. If it was yours, place it again elsewhere.": "Quita un camino abierto. Si era tuyo, colócalo en otro sitio.",
+"Push away an opponent knight standing on your road network.": "Expulsa a un caballero rival que esté en tu red de caminos.",
+"Everyone with at least your points discards half their cards.": "Quien tenga al menos tus puntos descarta la mitad de sus cartas.",
+"Look at an opponent’s progress cards and take one.": "Mira las cartas de progreso de un rival y quédate con una.",
+"Activate all your knights for free.": "Activa gratis a todos tus caballeros.",
+"Each player with more points gives you 2 cards of their choice.": "Cada jugador con más puntos te da 2 cartas a su elección.",
+"Trading House: trade 2 of the same commodity for any 1 card with the bank": "Casa de comercio: cambia 2 mercancías iguales por 1 carta cualquiera con el banco",
+"Fortress: promote strong knights to mighty knights": "Fortaleza: asciende caballeros fuertes a poderosos",
+"Aqueduct: when a roll pays you nothing, take 1 resource of your choice": "Acueducto: si una tirada no te da nada, toma 1 recurso a tu elección",
+// ---------- scenarios ----------
+"The Fishermen of Catan": "Los pescadores de Catan",
+"The Rivers of Catan": "Los ríos de Catan",
+"The Caravans": "Las caravanas",
+"Barbarian Attack": "Ataque bárbaro",
+"Traders & Barbarians": "Mercaderes y Bárbaros",
+"Land Ho!": "¡Tierra a la vista!",
+"Pirate Lairs": "Guaridas piratas",
+"Fish for Catan": "Pescado para Catan",
+"Spices for Catan": "Especias para Catan",
+"Explorers & Pirates": "Exploradores y Piratas",
+"A lake and six fishing grounds catch fish you spend on actions. Watch out for the old boot.": "Un lago y seis caladeros dan peces que gastas en acciones. Cuidado con la bota vieja.",
+"Build along two rivers and over bridges for gold. The richest settler scores, the poorest lose 2 VP.": "Construye junto a dos ríos y sobre puentes para ganar oro. El más rico suma, los más pobres pierden 2 PV.",
+"Camel caravans leave the oasis. Bid wool and grain to steer them past your settlements.": "Las caravanas de camellos salen del oasis. Puja lana y trigo para guiarlas junto a tus poblados.",
+"Barbarians land on the coast with every new settlement. Send knights from the castle to take prisoners.": "Los bárbaros desembarcan con cada nuevo poblado. Envía caballeros desde el castillo para tomar prisioneros.",
+"Drive your wagon between the castle, quarry and glassworks to deliver goods for gold and points.": "Lleva tu carreta entre el castillo, la cantera y la vidriería para entregar bienes por oro y puntos.",
+"Sail into the fog, discover new land and found settlements with settler ships.": "Navega en la niebla, descubre tierras nuevas y funda poblados con barcos de colonos.",
+"Adds crews and pirate ships. Capture pirate lairs to free their gold fields.": "Añade tripulaciones y barcos piratas. Captura guaridas piratas para liberar sus campos de oro.",
+"Pirate lairs plus fish shoals: catch fish hauls and deliver them to the Council of Catan.": "Guaridas piratas y bancos de peces: captura peces y llévalos al Consejo de Catan.",
+"Fish plus spice islands: trade with villages for spice and lasting advantages.": "Peces e islas de especias: comercia con aldeas por especias y ventajas duraderas.",
+"The full campaign: pirate lairs, fish and spices all at once.": "La campaña completa: guaridas piratas, peces y especias a la vez.",
+// ---------- main menu ----------
+"Settle an island of hexes. Trade, build and outwit up to five AI rivals.": "Coloniza una isla de hexágonos. Comercia, construye y supera hasta a cinco rivales IA.",
+"Resume game": "Continuar partida",
+"Play online with friends": "Jugar en línea con amigos",
+"New game vs the AI": "Nueva partida contra la IA",
+"Tutorials & rules": "Tutoriales y reglas",
+"Leave online game": "Salir de la partida en línea",
+"Unofficial fan clone of the CATAN board game rules. Not affiliated with CATAN GmbH.": "Clon no oficial, hecho por fans, de las reglas del juego de mesa CATAN. Sin relación con CATAN GmbH.",
+"Leave this online game? Your seat stays reserved, so you can rejoin from the same device.": "¿Salir de esta partida en línea? Tu puesto queda reservado, así que puedes volver desde este mismo dispositivo.",
+// setup
+"New game": "Nueva partida",
+"Players": "Jugadores",
+"Number of players": "Número de jugadores",
+"Your color": "Tu color",
+"The rivals take the remaining colors.": "Los rivales usan los colores restantes.",
+"Opponents": "Rivales",
+"Set every opponent": "Ajustar a todos los rivales",
+"Set all:": "Todos:",
+"Easy": "Fácil",
+"Hard": "Difícil",
+"AI trade willingness:": "Disposición de la IA a comerciar:",
+"Game mode": "Modo de juego",
+"Variants": "Variantes",
+"Back": "Volver",
+"Start game": "Empezar partida",
+"Uses the 30-tile island, 11 harbors and the paired-players turn.": "Usa la isla de 30 casillas, 11 puertos y el turno en pareja.",
+"The classic 19-tile island.": "La isla clásica de 19 casillas.",
+"Stingy": "Tacaña",
+"Cautious": "Cautelosa",
+"Fair": "Justa",
+"Friendly": "Amistosa",
+"Generous": "Generosa",
+"AIs only take clearly better deals and rarely offer any.": "La IA solo acepta tratos claramente mejores y casi nunca ofrece.",
+"AIs want a small edge in every trade.": "La IA quiere una pequeña ventaja en cada trato.",
+"AIs accept even swaps that don’t hurt their plans.": "La IA acepta cambios parejos que no afecten sus planes.",
+"AIs happily help out, even at a small loss.": "La IA ayuda con gusto, aunque pierda un poco.",
+"AIs accept almost anything and make lots of offers.": "La IA acepta casi todo y hace muchas ofertas.",
+"Standard": "Estándar",
+"Classic + expansions": "Clásico + expansiones",
+"5 scenarios": "5 escenarios",
+"Seafarers": "Navegantes",
+"Ships, small islands, gold fields and the pirate. New Shores-style map, 14 VP.": "Barcos, islas pequeñas, campos de oro y el pirata. Mapa estilo Nuevas costas, 14 PV.",
+"Cities & Knights": "Ciudades y Caballeros",
+"Commodities, city improvements, knights, the barbarian ship and progress cards. Adds 3 to the goal.": "Mercancías, mejoras de ciudad, caballeros, el barco bárbaro y cartas de progreso. Suma 3 a la meta.",
+"5–6 player extension": "Ampliación 5–6 jugadores",
+"Switches on by itself with 5 or 6 players.": "Se activa sola con 5 o 6 jugadores.",
+"automatic": "automática",
+"Traders & Barbarians scenarios are played without Seafarers or Cities & Knights.": "Los escenarios de Mercaderes y Bárbaros se juegan sin Navegantes ni Ciudades y Caballeros.",
+"Explorers & Pirates scenarios are played without Seafarers or Cities & Knights.": "Los escenarios de Exploradores y Piratas se juegan sin Navegantes ni Ciudades y Caballeros.",
+"Scenario": "Escenario",
+"Friendly Robber": "Ladrón amistoso",
+"The robber can’t hit anyone with 2 victory points or fewer.": "El ladrón no puede atacar a nadie con 2 puntos de victoria o menos.",
+"no robber here": "aquí no hay ladrón",
+"Catan Event Cards": "Cartas de evento de Catan",
+"A 36-card deck replaces the dice: every number shows up in a fair spread, and some cards trigger events.": "Un mazo de 36 cartas reemplaza los dados: cada número sale de forma pareja y algunas cartas activan eventos.",
+"Harbormaster": "Maestro del puerto",
+"Settlements at harbors score harbor points (cities 2). The first to 3 holds 2 VP; the goal rises by 1.": "Los poblados en puertos dan puntos de puerto (ciudades 2). El primero en llegar a 3 tiene 2 PV; la meta sube en 1.",
+"no harbors here": "aquí no hay puertos",
+// online
+"Play online": "Jugar en línea",
+"Everyone plays in their own browser, live. One person makes a room and shares the code or link, the others join. Empty seats are filled by AI.": "Cada quien juega en su propio navegador, en vivo. Una persona crea una sala y comparte el código o el enlace, y los demás se unen. La IA ocupa los puestos vacíos.",
+"Your name": "Tu nombre",
+"What should we call you?": "¿Cómo te llamamos?",
+"Server address": "Dirección del servidor",
+"Where the game server runs. Not needed when you opened the game from the server itself.": "Dónde corre el servidor del juego. No hace falta si abriste el juego desde el propio servidor.",
+"Create a room": "Crear una sala",
+"CODE": "CÓDIGO",
+"Room code": "Código de sala",
+"Join": "Unirse",
+"Room": "Sala",
+"Invite link": "Enlace de invitación",
+"Copy link": "Copiar",
+"Copied!": "¡Copiado!",
+"Press copy": "Pulsa copiar",
+"Seats": "Puestos",
+"Rejoin room": "Volver a la sala",
+"Leave": "Salir",
+"Host": "Anfitrión",
+"reconnecting": "reconectando",
+"Open seat": "Puesto libre",
+"Waiting for a player. Empty seats play as AI.": "Esperando a un jugador. Los puestos vacíos los juega la IA.",
+"Remove player": "Quitar jugador",
+"Replace with open seat": "Cambiar por puesto libre",
+"Open": "Abrir",
+"Empty seats become AI players when you start.": "Los puestos vacíos pasan a la IA al empezar.",
+"Waiting for the host to start the game…": "Esperando a que el anfitrión empiece la partida…",
+"Type the address of the game server first.": "Primero escribe la dirección del servidor del juego.",
+"That server address does not look right.": "Esa dirección de servidor no parece correcta.",
+"Could not reach the game server.": "No se pudo conectar con el servidor del juego.",
+"Room codes have 4 letters.": "Los códigos de sala tienen 4 letras.",
+"Missing player id": "Falta el id del jugador",
+"The server is full, try again later": "El servidor está lleno, inténtalo más tarde",
+"No room with that code": "No hay ninguna sala con ese código",
+"That game has already started": "Esa partida ya empezó",
+"That room is full": "Esa sala está llena",
+"This game is open in another tab or window": "Esta partida está abierta en otra pestaña o ventana",
+"Not in a room": "No estás en una sala",
+"That color is taken": "Ese color ya está ocupado",
+"The host removed you from the room": "El anfitrión te sacó de la sala",
+// learn
+"Learn to play": "Aprende a jugar",
+"Guided game: the basics": "Partida guiada: lo básico",
+"Play your first turns with a coach at your side. Four players, easy opponents.": "Juega tus primeros turnos con un guía a tu lado. Cuatro jugadores, rivales fáciles.",
+"Guided game: Seafarers": "Partida guiada: Navegantes",
+"Ships, gold fields, the pirate and the race for new islands.": "Barcos, campos de oro, el pirata y la carrera por nuevas islas.",
+"Guided game: Cities & Knights": "Partida guiada: Ciudades y Caballeros",
+"Commodities, city improvements, knights and the barbarian ship.": "Mercancías, mejoras de ciudad, caballeros y el barco bárbaro.",
+"Rules library": "Biblioteca de reglas",
+"How expansions mix": "Cómo combinar expansiones",
+"Playable here": "Se puede jugar aquí",
+"Rules only · not playable in this app yet": "Solo reglas · aún no se puede jugar aquí",
+// ---------- modals ----------
+"Steal a card": "Roba una carta",
+"Pick one face-down card. You keep whatever it turns out to be.": "Elige una carta boca abajo. Te quedas con lo que salga.",
+"Pick one face-down card from any player next to the robber. You keep whatever it turns out to be.": "Elige una carta boca abajo de cualquier jugador junto al ladrón. Te quedas con lo que salga.",
+"Choose this roll. The event die is still rolled as normal, and the red die decides who gets progress cards.": "Elige esta tirada. El dado de eventos se tira igual, y el dado rojo decide quién recibe cartas de progreso.",
+"Yellow die": "Dado amarillo",
+"Red die": "Dado rojo",
+"Total:": "Total:",
+"· a 7 pays nothing": "· un 7 no paga nada",
+"Use these dice": "Usar estos dados",
+"You get": "Recibes",
+"You give": "Das",
+"Accept": "Aceptar",
+"Decline": "Rechazar",
+"Declines": "Rechaza",
+"Name a resource. Every opponent hands you all of theirs.": "Nombra un recurso. Cada rival te entrega todas sus cartas de ese tipo.",
+"Tap cards to build an offer. The bank pays at the rate under each card (harbors improve it). Players answer right away.": "Toca cartas para armar una oferta. El banco paga según la tasa bajo cada carta (los puertos la mejoran). Los jugadores responden al instante.",
+"from your hand": "de tu mano",
+"You receive": "Recibes",
+"Sell the cards you give for 1 gold": "Vender las cartas que das por 1 de oro",
+"Trade with bank": "Comerciar con el banco",
+"Offer to players": "Ofrecer a los jugadores",
+"Done": "Listo",
+"Trade answers": "Respuestas al trato",
+"No deal": "Sin trato",
+"You ruled the island": "Dominaste la isla",
+"Final scores, with secret Victory Point cards revealed.": "Puntuación final, con las cartas secretas de Punto de victoria reveladas.",
+"Look at the board": "Ver el tablero",
+"Yes": "Sí",
+"No": "No",
+"Buy with gold": "Comprar con oro",
+"Pay 2 gold for any 1 resource.": "Paga 2 de oro por 1 recurso cualquiera.",
+"Shared defence": "Defensa compartida",
+"You tied for the strongest defence. Draw a progress card from the deck of your choice.": "Empataste en la mejor defensa. Saca una carta de progreso del mazo que quieras.",
+"Too many progress cards": "Demasiadas cartas de progreso",
+"You may hold 4. Choose one to put back under its deck.": "Puedes tener 4. Elige una para devolverla bajo su mazo.",
+"Year of Plenty": "Año de abundancia",
+"Take any 2 resource cards from the bank.": "Toma 2 cartas de recurso cualesquiera del banco.",
+"Pick a player with more points. You see their hand and take 2 cards.": "Elige a un jugador con más puntos. Ves su mano y tomas 2 cartas.",
+"Choose a card type. You trade it 2:1 with the bank for the rest of this turn.": "Elige un tipo de carta. Lo cambias 2:1 con el banco el resto del turno.",
+"Pick an opponent. They remove one knight; you may place one of the same strength for free.": "Elige a un rival. Retira un caballero; tú puedes poner gratis uno de la misma fuerza.",
+"Pick an opponent to spy on.": "Elige a un rival para espiarlo.",
+"Pick a player to take a random card from.": "Elige a un jugador para quitarle una carta al azar.",
+"You lead: pick a player with fewer points to receive 1 card.": "Vas primero: elige a un jugador con menos puntos para darle 1 carta.",
+"Seven": "Siete",
+"Fish: steal": "Peces: robar",
+"Fish": "Peces",
+"Pirates": "Piratas",
+"Rob a player with a ship next to your pirate.": "Roba a un jugador con un barco junto a tu pirata.",
+"City improvements": "Mejoras de ciudad",
+"Climb a track with commodities: level n costs n of that track's commodity. Level 3 unlocks a power. The first to level 4 raises that track's metropolis (+2 VP), and whoever reaches level 5 first takes it for good. You need at least one city.": "Sube en cada vía con mercancías: el nivel n cuesta n de la mercancía de esa vía. El nivel 3 desbloquea un poder. El primero en llegar al nivel 4 levanta la metrópolis de esa vía (+2 PV), y quien llegue primero al 5 se la queda para siempre. Necesitas al menos una ciudad.",
+"pays in cloth": "se paga con tela",
+"pays in coin": "se paga con moneda",
+"pays in paper": "se paga con papel",
+"Level 3": "Nivel 3",
+"Complete": "Completo",
+"Recruit a basic knight": "Reclutar un caballero básico",
+"Wool + ore. Place it on a free corner along your roads.": "Lana + mineral. Colócalo en una esquina libre junto a tus caminos.",
+"Promote a knight": "Ascender un caballero",
+"Wool + ore. Basic to strong, strong to mighty. Two of each rank at most.": "Lana + mineral. De básico a fuerte, de fuerte a poderoso. Máximo dos de cada rango.",
+"Wool + ore. Basic to strong; mighty needs Politics level 3. Two of each rank at most.": "Lana + mineral. De básico a fuerte; el poderoso requiere Política nivel 3. Máximo dos de cada rango.",
+"Activate a knight": "Activar un caballero",
+"Grain. Only active knights defend against barbarians or take actions.": "Trigo. Solo los caballeros activos defienden de los bárbaros o actúan.",
+"Use an active knight": "Usar un caballero activo",
+"Ride along your roads, push away a weaker knight, or chase off the robber next to it. Not on the turn it was built or activated.": "Cabalga por tus caminos, expulsa a un caballero más débil o ahuyenta al ladrón a su lado. No en el turno en que se construyó o activó.",
+"Knight action": "Acción de caballero",
+"This knight stands next to the robber.": "Este caballero está junto al ladrón.",
+"Chase the robber away": "Ahuyentar al ladrón",
+"Ride somewhere instead": "Mejor cabalgar a otro lado",
+"Camel vote": "Votación del camello",
+"A camel joins a caravan. Bid wool and grain cards: the highest bid decides where it goes, and every bid card goes to the bank. Glowing paths show the options.": "Un camello se suma a una caravana. Puja con cartas de lana y trigo: la puja más alta decide adónde va, y todas las cartas pujadas van al banco. Los caminos brillantes muestran las opciones.",
+"Spend fish": "Gastar peces",
+"Pass the old boot": "Pasar la bota vieja",
+"Give it to a player with at least as many points as you.": "Dásela a un jugador con al menos tantos puntos como tú.",
+"Load the ship?": "¿Cargar el barco?",
+"Found a settlement?": "¿Fundar un poblado?",
+"Your settler ship can land here. The ship and settler return to your supply.": "Tu barco de colonos puede desembarcar aquí. El barco y el colono vuelven a tu reserva.",
+"Attack the pirate lair?": "¿Atacar la guarida pirata?",
+"Put your crews on the lair. Three crews in total capture it.": "Pon tus tripulaciones en la guarida. Con tres tripulaciones en total se captura.",
+"Trade with the spice village?": "¿Comerciar con la aldea de especias?",
+"Leave a crew there for good and load a spice sack. You also gain the village’s advantage.": "Deja allí una tripulación para siempre y carga un saco de especias. Además obtienes la ventaja de la aldea.",
+"Catch the fish haul?": "¿Capturar los peces?",
+"It fills the ship’s hold until you deliver it to the Council of Catan.": "Llena la bodega del barco hasta que lo entregues al Consejo de Catan.",
+"Extra speed?": "¿Más velocidad?",
+"Pay 1 wool for 2 more steps this turn.": "Paga 1 lana por 2 pasos más este turno.",
+"Pay 1 wool": "Pagar 1 lana",
+"No thanks": "No, gracias",
+"Fast Gold": "Oro rápido",
+"Sell one resource card for 1 gold.": "Vende una carta de recurso por 1 de oro.",
+// ---------- event cards ----------
+"Robber Attacks!": "¡Ataca el ladrón!",
+"Epidemic": "Epidemia",
+"Earthquake": "Terremoto",
+"Good Neighbors": "Buenos vecinos",
+"Tournament": "Torneo",
+"Trade Advantage": "Ventaja comercial",
+"Calm Seas": "Mar en calma",
+"Robber Flees": "El ladrón huye",
+"Neighborly Assistance": "Ayuda vecinal",
+"Conflict": "Conflicto",
+"Plentiful Year": "Año próspero",
+"Event card:": "Carta de evento:",
+"New Year: the event deck is reshuffled": "Año nuevo: se baraja el mazo de eventos",
+"The robber flees back to the desert": "El ladrón huye de vuelta al desierto",
+"Aqueduct": "Acueducto",
+"(Gold field)": "(Campo de oro)",
+"(Aqueduct)": "(Acueducto)",
+"(Tournament)": "(Torneo)",
+"(Calm Seas)": "(Mar en calma)",
+"(Plentiful Year)": "(Año próspero)",
+"(Fish)": "(Peces)",
+// ---------- banners ----------
+"Seven! The robber strikes": "¡Siete! Ataca el ladrón",
+"Seven! Big hands discard": "¡Siete! Manos grandes descartan",
+"The barbarians attack!": "¡Atacan los bárbaros!",
+"The knights hold Catan!": "¡Los caballeros defienden Catan!",
+"The barbarians pillage!": "¡Los bárbaros saquean!",
+"A coastal tile falls!": "¡Cae una casilla costera!",
+"Barbarians defeated!": "¡Bárbaros derrotados!",
+"Pirate lair captured!": "¡Guarida pirata capturada!",
+// ---------- log fragments (text after a player's name) ----------
+"rolled": "sacó",
+"· event: barbarian ship": "· evento: barco bárbaro",
+"· event: Trade gate": "· evento: puerta de comercio",
+"· event: Politics gate": "· evento: puerta de política",
+"· event: Science gate": "· evento: puerta de ciencia",
+"placed a settlement": "colocó un poblado",
+"built a settlement": "construyó un poblado",
+"placed a settlement on a harbor": "colocó un poblado en un puerto",
+"built a settlement on a harbor": "construyó un poblado en un puerto",
+"settled a new island: +2 VP": "colonizó una isla nueva: +2 PV",
+"built a ship": "construyó un barco",
+"moved a ship": "movió un barco",
+"upgraded a settlement to a city": "mejoró un poblado a ciudad",
+"repaired a road damaged by the earthquake": "reparó un camino dañado por el terremoto",
+"built a road": "construyó un camino",
+"You bought a development card:": "Compraste una carta de desarrollo:",
+"bought a development card": "compró una carta de desarrollo",
+"Longest Road is set aside (tie or broken route)": "El Camino más largo queda sin dueño (empate o ruta cortada)",
+"Longest Trade Route is set aside (tie or broken route)": "La Ruta comercial más larga queda sin dueño (empate o ruta cortada)",
+"Longest Road (+2 VP) goes to": "Camino más largo (+2 PV) para",
+"Longest Trade Route (+2 VP) goes to": "Ruta comercial más larga (+2 PV) para",
+"Largest Army (+2 VP) goes to": "Gran Ejército (+2 PV) para",
+"took": "tomó",
+"Only the gold fields paid out": "Solo pagaron los campos de oro",
+"Nobody collected anything": "Nadie cobró nada",
+"discarded": "descartó",
+"The robber waits in the desert until the barbarians first land": "El ladrón espera en el desierto hasta el primer desembarco bárbaro",
+"The friendly robber has nowhere to go": "El ladrón amistoso no tiene adónde ir",
+"moved the pirate to open water": "movió al pirata a mar abierto",
+"stole 1": "robó 1",
+"stole a card from": "le robó una carta a",
+"from": "a",
+"is named Defender of Catan: +1 VP": "es nombrado Defensor de Catan: +1 PV",
+"From now on a 7 or a knight moves the robber": "Desde ahora un 7 o un caballero mueve al ladrón",
+"From now on a 7 or a knight moves the robber or pirate": "Desde ahora un 7 o un caballero mueve al ladrón o al pirata",
+"lost a city to the barbarians": "perdió una ciudad ante los bárbaros",
+"You drew a progress card:": "Sacaste una carta de progreso:",
+"drew a Trade progress card": "sacó una carta de progreso de comercio",
+"drew a Politics progress card": "sacó una carta de progreso de política",
+"drew a Science progress card": "sacó una carta de progreso de ciencia",
+"put a progress card back": "devolvió una carta de progreso",
+"recruited a basic knight": "reclutó un caballero básico",
+"recruited a strong knight": "reclutó un caballero fuerte",
+"recruited a mighty knight": "reclutó un caballero poderoso",
+"promoted a knight to strong": "ascendió un caballero a fuerte",
+"promoted a knight to mighty": "ascendió un caballero a poderoso",
+"activated a knight": "activó un caballero",
+"'s knight chases the robber away": ": su caballero ahuyenta al ladrón",
+"'s knight pushes away": ": su caballero expulsa al de",
+"'s knight rides to a new corner": ": su caballero cabalga a otra esquina",
+"'s knight": "",
+"'s road": "",
+"'s knight has nowhere to go and leaves the board": ": su caballero no tiene adónde ir y sale del tablero",
+"built a city wall": "construyó una muralla",
+"takes the Trade metropolis from": "le quita la metrópolis de comercio a",
+"takes the Politics metropolis from": "le quita la metrópolis de política a",
+"takes the Science metropolis from": "le quita la metrópolis de ciencia a",
+"raises the Trade metropolis: +2 VP": "levanta la metrópolis de comercio: +2 PV",
+"raises the Politics metropolis: +2 VP": "levanta la metrópolis de política: +2 PV",
+"raises the Science metropolis: +2 VP": "levanta la metrópolis de ciencia: +2 PV",
+"played": "jugó",
+"takes the merchant from": "le quita el mercader a",
+"with Monopoly": "con Monopolio",
+"lost a basic knight to desertion": "perdió un caballero básico por deserción",
+"lost a strong knight to desertion": "perdió un caballero fuerte por deserción",
+"lost a mighty knight to desertion": "perdió un caballero poderoso por deserción",
+"removed one of their own roads": "quitó uno de sus propios caminos",
+"removed": "quitó el camino de",
+"pushes away": "expulsa al caballero de",
+"stole a progress card from": "le robó una carta de progreso a",
+"activated every knight": "activó a todos sus caballeros",
+"from the bank": "del banco",
+"traded": "cambió",
+"for": "por",
+"to": "a",
+"with the bank": "con el banco",
+"sold": "vendió",
+"for 1 gold": "por 1 de oro",
+"for 2 gold": "por 2 de oro",
+"becomes Harbormaster: +2 VP": "es Maestro del puerto: +2 PV",
+"offered": "ofreció",
+"Nobody accepted": "Nadie aceptó",
+"· no takers": "· nadie aceptó",
+"Tutorial game: you go first.": "Partida tutorial: empiezas tú.",
+"goes first.": "empieza.",
+"takes the paired turn": "juega el turno en pareja",
+"raised it straight to a city": "lo convirtió directo en ciudad",
+"collected starting resources": "cobró sus recursos iniciales",
+"collected starting resources (none)": "cobró sus recursos iniciales (ninguno)",
+"is now played by the AI": "ahora lo juega la IA",
+"drew": "sacó",
+"places a knight": "coloca un caballero",
+"takes a barbarian prisoner": "toma un prisionero bárbaro",
+"moves a barbarian": "mueve un bárbaro",
+"built a bridge": "construyó un puente",
+"is no longer the Wealthiest Settler": "ya no es el Colono más rico",
+"is the Wealthiest Settler: +1 VP": "es el Colono más rico: +1 PV",
+"Two caravans meet and merge": "Dos caravanas se encuentran y se unen",
+"places the camel": "coloca el camello",
+"fished up the old boot: they need 1 extra point to win": "pescó la bota vieja: necesita 1 punto más para ganar",
+"Not enough fish for everyone, so nobody gets any": "No hay peces para todos, así que nadie recibe",
+"Fish:": "Peces:",
+"passed the old boot to": "le pasó la bota vieja a",
+"built a settler": "construyó un colono",
+"built a crew": "construyó una tripulación",
+"scrapped a ship to build a new one": "desguazó un barco para construir otro",
+"upgraded a settlement to a harbor settlement: +1 VP": "mejoró un poblado a poblado portuario: +1 PV",
+"placed a harbor settlement": "colocó un poblado portuario",
+"pays 1 gold tribute to the pirates": "paga 1 de oro de tributo a los piratas",
+"founded a settlement from a settler ship": "fundó un poblado desde un barco de colonos",
+"caught a fish haul": "capturó peces",
+"The pirates eat the fish haul": "Los piratas se comen los peces",
+"sends their pirate ship out": "envía su barco pirata",
+"takes 1 gold from": "le quita 1 de oro a",
+"discovered open sea": "descubrió mar abierto",
+"discovered a pirate lair on a gold field": "descubrió una guarida pirata en un campo de oro",
+"discovered a fish shoal": "descubrió un banco de peces",
+"discovered a spice island": "descubrió una isla de especias",
+// ---------- prompts (status line) ----------
+"Move the robber (click land) or the pirate (click sea)": "Mueve al ladrón (toca tierra) o al pirata (toca mar)",
+"Move the robber: click any other tile": "Mueve al ladrón: toca cualquier otra casilla",
+"The barbarians pillage one of your cities: choose which one becomes a settlement": "Los bárbaros saquean una de tus ciudades: elige cuál vuelve a ser poblado",
+"Your knight was pushed away: choose where it retreats": "Expulsaron a tu caballero: elige adónde se retira",
+"Engineer: choose a city for a free wall": "Ingeniero: elige una ciudad para una muralla gratis",
+"Inventor: pick the first number disc to swap": "Inventor: elige la primera ficha de número a cambiar",
+"Inventor: pick the disc to swap it with": "Inventor: elige la ficha con la que cambiarla",
+"Medicine: choose a settlement to upgrade for 2 ore + 1 grain": "Medicina: elige un poblado para mejorarlo por 2 mineral + 1 trigo",
+"Merchant: choose a tile next to your buildings. You trade its resource 2:1.": "Mercader: elige una casilla junto a tus construcciones. Cambias su recurso 2:1.",
+"Bishop: move the robber. You rob everyone next to it.": "Obispo: mueve al ladrón. Robas a todos los que estén a su lado.",
+"Deserter: place your free basic knight": "Desertor: coloca tu caballero básico gratis",
+"Deserter: place your free strong knight": "Desertor: coloca tu caballero fuerte gratis",
+"Deserter: place your free mighty knight": "Desertor: coloca tu caballero poderoso gratis",
+"Diplomat: choose an open road to remove": "Diplomático: elige un camino abierto para quitarlo",
+"Diplomat: place your road again": "Diplomático: vuelve a colocar tu camino",
+"Intrigue: choose an opponent knight on your roads to push away": "Intriga: elige un caballero rival en tus caminos para expulsarlo",
+"Place your harbor settlement on a coastal corner": "Coloca tu poblado portuario en una esquina costera",
+"Place your settlement": "Coloca tu poblado",
+"Place a road next to your settlement": "Coloca un camino junto a tu poblado",
+"Place your settler ship next to your harbor settlement": "Coloca tu barco de colonos junto a tu poblado portuario",
+"Pick the corner for your new settlement": "Elige la esquina de tu nuevo poblado",
+"Place your pirate ship on open water": "Coloca tu barco pirata en mar abierto",
+"Pick a coastal settlement to upgrade (Esc cancels)": "Elige un poblado costero para mejorarlo (Esc cancela)",
+"Place the new ship next to your harbor (Esc cancels)": "Coloca el barco nuevo junto a tu puerto (Esc cancela)",
+"Pick a ship to sail (Esc cancels)": "Elige un barco para navegar (Esc cancela)",
+"Place your first settlement on a glowing corner": "Coloca tu primer poblado en una esquina brillante",
+"Place your second settlement on a glowing corner": "Coloca tu segundo poblado en una esquina brillante",
+"Now place a road, or a ship on open water, touching that settlement": "Ahora coloca un camino, o un barco en mar abierto, junto a ese poblado",
+"Now place a road touching that settlement": "Ahora coloca un camino junto a ese poblado",
+"Pick the ship to move: only ships at the open end of a route (Esc cancels)": "Elige el barco a mover: solo los del extremo abierto de una ruta (Esc cancela)",
+"Now pick where that ship sails to": "Ahora elige adónde navega ese barco",
+"Click a glowing spot to build your road (Esc cancels)": "Toca un punto brillante para construir tu camino (Esc cancela)",
+"Click a glowing spot to build your ship (Esc cancels)": "Toca un punto brillante para construir tu barco (Esc cancela)",
+"Click a glowing spot to build your settlement (Esc cancels)": "Toca un punto brillante para construir tu poblado (Esc cancela)",
+"Click a glowing spot to build your city (Esc cancels)": "Toca un punto brillante para construir tu ciudad (Esc cancela)",
+"Click a glowing spot to build your city wall (Esc cancels)": "Toca un punto brillante para construir tu muralla (Esc cancela)",
+"Recruit: click a free corner on your roads (Esc cancels)": "Reclutar: toca una esquina libre en tus caminos (Esc cancela)",
+"Promote: click one of your knights (Esc cancels)": "Ascender: toca uno de tus caballeros (Esc cancela)",
+"Activate: click an inactive knight (Esc cancels)": "Activar: toca un caballero inactivo (Esc cancela)",
+"Pick an active knight to use (Esc cancels)": "Elige un caballero activo para usarlo (Esc cancela)",
+"Click where the knight rides. A stronger knight can push a weaker one off its corner.": "Toca adónde cabalga el caballero. Uno más fuerte puede expulsar a uno más débil de su esquina.",
+"Fish: place your free road": "Peces: coloca tu camino gratis",
+"Click a bridge site next to your roads (Esc cancels)": "Toca un sitio de puente junto a tus caminos (Esc cancela)",
+"You won the camel vote: click the path for the next camel": "Ganaste la votación: toca el camino del próximo camello",
+"Knighthood: place a knight on a path around the castle": "Investidura: coloca un caballero en un camino alrededor del castillo",
+"Swift Knight: place a knight on any free path": "Caballero veloz: coloca un caballero en cualquier camino libre",
+"Intrigue: take a barbarian prisoner from a tile": "Intriga: toma un prisionero bárbaro de una casilla",
+"Treason: pick a tile to move a barbarian from": "Traición: elige la casilla de donde mover un bárbaro",
+"Treason: pick a coastal tile for that barbarian": "Traición: elige una casilla costera para ese bárbaro",
+"Knighthood": "Investidura",
+"Swift Knight": "Caballero veloz",
+"Treason": "Traición",
+// ---------- scenario buttons, meta and board labels ----------
+"Spend fish tokens on an action": "Gasta fichas de peces en una acción",
+"Pass boot": "Pasar bota",
+"Give the old boot to a player with at least as many points": "Dale la bota vieja a un jugador con al menos tantos puntos",
+"Chase the robber off the board": "Sacar al ladrón del tablero",
+"Steal a resource from a player": "Robar un recurso a un jugador",
+"Take a resource from the bank": "Tomar un recurso del banco",
+"Build a free road": "Construir un camino gratis",
+"Draw a free development card": "Sacar una carta de desarrollo gratis",
+"Your fish buy a resource.": "Tus peces compran un recurso.",
+"Bridge": "Puente",
+"Bridge: 2 brick + 1 lumber, earns 3 gold": "Puente: 2 arcilla + 1 madera, da 3 de oro",
+"Wealthiest": "El más rico",
+"Camel": "Camello",
+"Knight card": "Carta caballero",
+"Development card: wool, grain, ore. It is resolved at once": "Carta de desarrollo: lana, trigo, mineral. Se resuelve al instante",
+"Ride": "Cabalgar",
+"Move each knight up to 3 paths (5 for a grain), once per turn": "Mueve cada caballero hasta 3 caminos (5 por un trigo), una vez por turno",
+"Barbarian": "Bárbaro",
+"Wagon": "Carreta",
+"Move your wagon (after building)": "Mueve tu carreta (después de construir)",
+"Train": "Tren",
+"Upgrade your baggage train: more movement, more gold per delivery, and drive barbarians off": "Mejora tu tren de carga: más movimiento, más oro por entrega y ahuyentar bárbaros",
+"Drive off": "Ahuyentar",
+"Roll to drive off a barbarian next to your wagon (once per barbarian per turn)": "Tira para ahuyentar a un bárbaro junto a tu carreta (una vez por bárbaro y turno)",
+"Harbor": "Puerto",
+"Upgrade a coastal settlement to a harbor settlement: 2 grain + 2 ore (worth 2 VP)": "Mejora un poblado costero a poblado portuario: 2 trigo + 2 mineral (vale 2 PV)",
+"Ship: lumber + wool, placed next to one of your harbor settlements": "Barco: madera + lana, junto a uno de tus poblados portuarios",
+"Settler": "Colono",
+"Settler: settlement cost. It waits in a harbor or boards a ship there": "Colono: cuesta como un poblado. Espera en un puerto o sube a un barco allí",
+"Crew": "Tripulación",
+"Crew: ore + wool. Crews capture pirate lairs and trade with spice villages": "Tripulación: mineral + lana. Capturan guaridas piratas y comercian con aldeas de especias",
+"Move a ship (4 steps, +2 for a wool). After sailing you can no longer build or trade this turn": "Mueve un barco (4 pasos, +2 por una lana). Después de navegar ya no puedes construir ni comerciar este turno",
+"Fish roll": "Pesca",
+"Once per turn: roll a die to put a fish haul on the matching shoal": "Una vez por turno: tira un dado para poner peces en el banco que coincida",
+"Attack": "Atacar",
+"Each unmoved ship beside the pirate rolls: a 6 drives it off": "Cada barco sin mover junto al pirata tira: con un 6 lo ahuyenta",
+"Sell": "Vender",
+"Fast Gold: sell 1 resource for 1 gold (once per befriended village each turn)": "Oro rápido: vende 1 recurso por 1 de oro (una vez por aldea amiga cada turno)",
+"Unexplored": "Sin explorar",
+"Council of Catan: deliver fish and spice here": "Consejo de Catan: entrega aquí peces y especias",
+"COUNCIL": "CONSEJO",
+// ---------- tutorial coach ----------
+"Tutorial": "Tutorial",
+"Scenario guide": "Guía del escenario",
+"Place your first settlement": "Coloca tu primer poblado",
+"Click a glowing corner. Good spots touch high-odds numbers (more dots under the number) and different resources. Two settlements can never be neighbours.": "Toca una esquina brillante. Los buenos sitios tocan números probables (más puntos bajo el número) y recursos distintos. Dos poblados nunca pueden ser vecinos.",
+"Now a road": "Ahora un camino",
+"Click a glowing path next to your settlement. Roads let you reach new corners later.": "Toca un camino brillante junto a tu poblado. Los caminos te llevan luego a nuevas esquinas.",
+"Snake draft": "Colocación en serpiente",
+"Everyone places one settlement and road, then the order reverses for a second round. Your second settlement pays one card from every tile it touches.": "Cada uno coloca un poblado y un camino, y luego el orden se invierte para una segunda ronda. Tu segundo poblado te da una carta de cada casilla que toca.",
+"Click Roll or tap the dice. Every settlement next to a tile with the rolled number collects its resource, on every player’s roll, not just yours.": "Toca Tirar o los dados. Cada poblado junto a una casilla con el número que salió cobra su recurso, en la tirada de cualquier jugador, no solo en la tuya.",
+"Your hand": "Tu mano",
+"Resource cards fan out at the bottom. Hover to lift one, tap to select it for a trade, or drag it up onto the board to start a trade with it.": "Las cartas de recurso se abren en abanico abajo. Pasa el cursor para levantar una, tócala para elegirla para un trato, o arrástrala al tablero para empezar un trato con ella.",
+"Building": "Construir",
+"A button lights up when you can afford it; the little cards show the cost. Road: brick + lumber. Settlement: brick, lumber, wool, grain. City: 2 grain + 3 ore, and it doubles that corner’s production.": "Un botón se ilumina cuando puedes pagarlo; las cartitas muestran el costo. Camino: arcilla + madera. Poblado: arcilla, madera, lana, trigo. Ciudad: 2 trigo + 3 mineral, y duplica la producción de esa esquina.",
+"Trading": "Comerciar",
+"Open Trade to swap with the bank at 4:1, or 3:1 and 2:1 at harbors you own. You can also offer deals to the AIs; they answer at once. Trading only happens on your own turn.": "Abre Comercio para cambiar con el banco a 4:1, o a 3:1 y 2:1 en tus puertos. También puedes ofrecer tratos a la IA; responde al instante. Solo se comercia en tu propio turno.",
+"End your turn": "Termina tu turno",
+"When you’re done, click End turn and watch the others play. Keep an eye on their card counts and points around the table.": "Cuando acabes, toca Terminar turno y mira jugar a los demás. Vigila cuántas cartas y puntos tiene cada uno.",
+"The robber": "El ladrón",
+"A 7 pays nothing. Anyone with more than 7 cards discards half; you pick yours straight from your hand. The roller then moves the robber and steals a card. You’ll choose from face-down cards.": "Un 7 no paga nada. Quien tenga más de 7 cartas descarta la mitad; tú eliges las tuyas directo de tu mano. Luego quien tiró mueve al ladrón y roba una carta. Elegirás entre cartas boca abajo.",
+"Development cards": "Cartas de desarrollo",
+"Buy them from the purple deck. Knights move the robber (3 or more gives Largest Army, +2 VP). Victory Point cards stay secret. Only one card per turn, and never on the turn you bought it.": "Cómpralas del mazo morado. Los caballeros mueven al ladrón (3 o más dan el Gran Ejército, +2 PV). Las cartas de Punto de victoria son secretas. Solo una carta por turno, y nunca en el turno en que la compraste.",
+"Welcome to the island": "Bienvenido a la isla",
+"You are the color you picked in the setup. Build settlements, cities and roads to reach 10 victory points before your three rivals. This coach will walk you through your first turns.": "Eres el color que elegiste al preparar la partida. Construye poblados, ciudades y caminos para llegar a 10 puntos de victoria antes que tus tres rivales. Este guía te acompaña en tus primeros turnos.",
+"Reading the board": "Cómo leer el tablero",
+"Forests give lumber, hills brick, pastures wool, fields grain, mountains ore. The disc shows which dice roll makes a tile produce; 6 and 8 (red) come up most. Scroll to zoom and drag to move the board.": "Los bosques dan madera, las colinas arcilla, los pastos lana, los campos trigo y las montañas mineral. La ficha indica qué tirada hace producir a la casilla; el 6 y el 8 (rojos) salen más. Usa la rueda para hacer zoom y arrastra para mover el tablero.",
+"How to win": "Cómo ganar",
+"Settlement 1 VP, city 2, Longest Road (5+) 2, Largest Army 2. The first to 10 on their own turn wins. You’re on your own now. Good luck!": "Poblado 1 PV, ciudad 2, Camino más largo (5+) 2, Gran Ejército 2. Gana el primero en llegar a 10 en su propio turno. Ahora sigues por tu cuenta. ¡Suerte!",
+"Welcome to Seafarers": "Bienvenido a Navegantes",
+"The main island is surrounded by sea and small islands. Reach 14 victory points. Every small island you settle first earns you 2 bonus points.": "La isla principal está rodeada de mar e islas pequeñas. Llega a 14 puntos de victoria. Cada isla pequeña donde te asientes te da 2 puntos extra.",
+"Gold fields (shining rivers) pay any resource you choose. Scroll to zoom and drag to explore the islands.": "Los campos de oro (ríos brillantes) pagan el recurso que elijas. Usa la rueda para hacer zoom y arrastra para explorar las islas.",
+"Ships": "Barcos",
+"Ships cost lumber + wool and sail along paths that touch water. They join your settlements or other ships. Roads and ships only connect through one of your settlements.": "Los barcos cuestan madera + lana y van por caminos que tocan el agua. Se unen a tus poblados o a otros barcos. Caminos y barcos solo se conectan a través de uno de tus poblados.",
+"Sailing": "Navegar",
+"Once per turn, Sail moves one ship from the open end of a route to a new spot. Ships built this turn can’t move yet. Use it to redirect toward an island.": "Una vez por turno, Navegar mueve un barco del extremo abierto de una ruta a otro sitio. Los barcos construidos este turno aún no se mueven. Úsalo para dirigirte a una isla.",
+"The pirate": "El pirata",
+"On a 7 or a Knight you choose: click land to move the robber, or sea to move the pirate. The pirate blocks ships around it and robs ship owners.": "Con un 7 o un Caballero eliges: toca tierra para mover al ladrón, o mar para mover al pirata. El pirata bloquea los barcos a su alrededor y roba a sus dueños.",
+"Race for the islands": "Carrera por las islas",
+"Your first settlement on each small island is worth 2 extra points. Roads and ships together count toward Longest Trade Route. Good sailing!": "Tu primer poblado en cada isla pequeña vale 2 puntos extra. Caminos y barcos juntos cuentan para la Ruta comercial más larga. ¡Buena travesía!",
+"Welcome to Cities & Knights": "Bienvenido a Ciudades y Caballeros",
+"Reach 13 victory points. There are no development cards here: you grow cities, recruit knights and hold off a barbarian fleet that grows with every city on the island.": "Llega a 13 puntos de victoria. Aquí no hay cartas de desarrollo: haces crecer ciudades, reclutas caballeros y frenas una flota bárbara que crece con cada ciudad de la isla.",
+"Three dice": "Tres dados",
+"The yellow and red dice give production as usual. The event die either moves the barbarian ship or shows a coloured city gate, which hands out progress cards.": "Los dados amarillo y rojo dan producción como siempre. El dado de eventos mueve el barco bárbaro o muestra una puerta de ciudad de color, que reparte cartas de progreso.",
+"Click a glowing corner. Mountains, forests and pastures matter more now: cities there also make coin, paper and cloth.": "Toca una esquina brillante. Montañas, bosques y pastos importan más ahora: las ciudades allí también dan moneda, papel y tela.",
+"Click a glowing path next to your settlement.": "Toca un camino brillante junto a tu poblado.",
+"Your second pick is a city": "Tu segunda pieza es una ciudad",
+"In the second round your settlement is raised to a city at once. Place it next to ore, wool or lumber to start earning commodities.": "En la segunda ronda tu poblado pasa a ser ciudad enseguida. Ponlo junto a mineral, lana o madera para empezar a ganar mercancías.",
+"Click Roll. Watch the barbarian track at the top of the board.": "Toca Tirar. Vigila el avance de los bárbaros arriba del tablero.",
+"Commodities": "Mercancías",
+"A city on forest, pasture or mountains produces one resource plus one commodity: paper, cloth or coin. Commodities count toward your hand when a 7 is rolled.": "Una ciudad en bosque, pasto o montaña produce un recurso y una mercancía: papel, tela o moneda. Las mercancías cuentan en tu mano cuando sale un 7.",
+"Improve spends commodities on three tracks: cloth for Trade, coin for Politics, paper for Science. Level 3 unlocks a power, level 4 can raise a metropolis worth 2 VP, and every level makes that colour’s progress cards more likely.": "Mejorar gasta mercancías en tres vías: tela para Comercio, moneda para Política, papel para Ciencia. El nivel 3 desbloquea un poder, el 4 puede levantar una metrópolis de 2 PV, y cada nivel hace más probables las cartas de progreso de ese color.",
+"The barbarians": "Los bárbaros",
+"Each ship on the event die moves them closer. When they land they attack with one point per city on the island. If the active knights of all players are weaker, whoever defended least loses a city.": "Cada barco en el dado de eventos los acerca. Al desembarcar atacan con un punto por cada ciudad de la isla. Si los caballeros activos de todos son más débiles, quien menos defendió pierde una ciudad.",
+"Recruit a knight for wool + ore and activate it with grain. Only active knights defend. They can also ride along your roads, push weaker knights away or chase off the robber, which only starts moving after the first attack.": "Recluta un caballero por lana + mineral y actívalo con trigo. Solo defienden los activos. También pueden cabalgar por tus caminos, expulsar a caballeros más débiles o ahuyentar al ladrón, que solo empieza a moverse tras el primer ataque.",
+"Progress cards": "Cartas de progreso",
+"When a gate colour comes up and the red die is low enough for your level on that track, you draw a progress card. Tap it in your hand to play it, as many as you like per turn. You may keep 4.": "Cuando sale una puerta de color y el dado rojo es lo bastante bajo para tu nivel en esa vía, sacas una carta de progreso. Tócala en tu mano para jugarla; puedes jugar las que quieras por turno. Puedes guardar 4.",
+"City walls": "Murallas",
+"A wall costs 2 brick and lets you hold 2 more cards before a 7 costs you anything.": "Una muralla cuesta 2 arcilla y te deja guardar 2 cartas más antes de que un 7 te cueste algo.",
+"Settlements 1 VP, cities 2, metropolises 2 more, Longest Road 2, each Defender of Catan card 1, the Merchant 1, and the Printer and Constitution cards 1 each. First to 13 on their own turn wins.": "Poblados 1 PV, ciudades 2, metrópolis 2 más, Camino más largo 2, cada carta de Defensor de Catan 1, el Mercader 1, y las cartas Imprenta y Constitución 1 cada una. Gana el primero en llegar a 13 en su propio turno.",
+"Harbor settlements": "Poblados portuarios",
+"Upgrade a coastal settlement (2 grain + 2 ore) into a harbor settlement: 2 VP, and the home port for your ships, settlers and crews. You start with one.": "Mejora un poblado costero (2 trigo + 2 mineral) a poblado portuario: 2 PV, y el puerto base de tus barcos, colonos y tripulaciones. Empiezas con uno.",
+"Sailing into the fog": "Navegar en la niebla",
+"Sail moves a ship 4 steps (+2 for a wool). Touching a fogged tile reveals it and ends that ship’s move: land pays 1 of its resource, anything else 2 gold. After you sail, building and trading are over for the turn.": "Navegar mueve un barco 4 pasos (+2 por una lana). Tocar una casilla con niebla la revela y termina el movimiento de ese barco: la tierra paga 1 de su recurso, lo demás 2 de oro. Después de navegar, ya no construyes ni comercias ese turno.",
+"Settler ships": "Barcos de colonos",
+"A settler costs the same as a settlement and boards a ship at your harbor. Sail beside free land to found a settlement there. Your first settlement in each new area has to arrive this way.": "Un colono cuesta lo mismo que un poblado y sube a un barco en tu puerto. Navega junto a tierra libre para fundar allí un poblado. Tu primer poblado en cada zona nueva tiene que llegar así.",
+"Gold": "Oro",
+"A roll that pays you nothing gives 1 gold. In Trade, 2 gold buy a resource (twice a turn) and 3 of a kind trade 3:1 or sell for 1 gold. There are no cities, development cards or Longest Road.": "Una tirada que no te da nada te da 1 de oro. En Comercio, 2 de oro compran un recurso (dos veces por turno) y 3 iguales se cambian 3:1 o se venden por 1 de oro. No hay ciudades, cartas de desarrollo ni Camino más largo.",
+"Pirate lairs": "Guaridas piratas",
+"Pirate lair": "Guarida pirata",
+"Gold fields hide pirate lairs. Build crews (ore + wool), sail them beside a lair and land them: three crews in total capture it. Captors gain gold and mission steps, and the freed field pays 2 gold per building. A 7 sends your pirate ship out to rob ships and charge tribute.": "Los campos de oro esconden guaridas piratas. Construye tripulaciones (mineral + lana), llévalas junto a una guarida y desembárcalas: con tres en total se captura. Los captores ganan oro y pasos de misión, y el campo liberado paga 2 de oro por construcción. Un 7 envía tu barco pirata a robar barcos y cobrar tributo.",
+"Fish for the Council": "Peces para el Consejo",
+"Once per turn, Fish roll puts a haul on the shoal matching your die. Catch it with an empty ship and deliver it to the Council of Catan beside the home island for a mission step.": "Una vez por turno, Pesca pone peces en el banco que coincide con tu dado. Captúralos con un barco vacío y llévalos al Consejo de Catan, junto a la isla principal, para avanzar un paso de misión.",
+"Spice villages": "Aldeas de especias",
+"Land a crew at a spice island to load a sack for the Council and befriend the village for good: faster ships, better odds against pirates, or selling cards for gold.": "Desembarca una tripulación en una isla de especias para cargar un saco para el Consejo y ganarte a la aldea para siempre: barcos más rápidos, mejores opciones contra piratas o vender cartas por oro.",
+"Catching fish": "Pescar",
+"Settlements beside a fishing ground (the numbered floats on the coast) draw a fish token when its number rolls; cities draw two. The lake pays on 2, 3, 11 and 12. The robber stays off the board until the first 7.": "Los poblados junto a un caladero (las boyas numeradas de la costa) sacan una ficha de peces cuando sale su número; las ciudades sacan dos. El lago paga con 2, 3, 11 y 12. El ladrón queda fuera del tablero hasta el primer 7.",
+"Spending fish": "Gastar peces",
+"Open Fish: 2 fish chase the robber off, 3 steal a resource, 4 buy one from the bank, 5 build a free road, 7 draw a development card. Tokens give no change and are safe from 7s.": "Abre Peces: 2 peces sacan al ladrón, 3 roban un recurso, 4 compran uno al banco, 5 construyen un camino gratis, 7 sacan una carta de desarrollo. Las fichas no dan vuelto y están a salvo del 7.",
+"The old boot": "La bota vieja",
+"Whoever draws it needs 1 extra point to win. After rolling you may pass it to a player with at least as many points as you.": "Quien la saque necesita 1 punto más para ganar. Después de tirar puedes pasarla a un jugador con al menos tantos puntos como tú.",
+"Gold on the rivers": "Oro en los ríos",
+"Each road on a river path and each settlement on a river corner pays 1 gold. Dotted paths are bridge sites: a Bridge (2 brick + 1 lumber) pays 3 gold. One tile answers to both 2 and 12.": "Cada camino junto al río y cada poblado en una esquina del río pagan 1 de oro. Los caminos punteados son sitios de puente: un Puente (2 arcilla + 1 madera) paga 3 de oro. Una casilla responde al 2 y al 12.",
+"Rich and poor": "Ricos y pobres",
+"The sole richest player is the Wealthiest Settler (+1 VP). Everyone tied for the least gold is a Poor Settler (−2 VP). Spend gold in Trade: 2 gold buy a resource, twice a turn.": "El único jugador más rico es el Colono más rico (+1 PV). Todos los empatados con menos oro son Colonos pobres (−2 PV). Gasta oro en Comercio: 2 de oro compran un recurso, dos veces por turno.",
+"Camel votes": "Votaciones de camellos",
+"After any turn with a new settlement or city, everyone bids wool and grain once; the top bid chooses where the next camel walks. Bid cards are spent. The robber enters with the first 7.": "Tras cada turno con un poblado o ciudad nuevos, todos pujan lana y trigo una vez; la puja más alta elige por dónde va el próximo camello. Las cartas pujadas se gastan. El ladrón entra con el primer 7.",
+"Why camels matter": "Por qué importan los camellos",
+"A settlement or city between two camels is worth 1 extra VP, and a road under a camel counts double for Longest Road.": "Un poblado o ciudad entre dos camellos vale 1 PV extra, y un camino bajo un camello cuenta doble para el Camino más largo.",
+"Barbarians land": "Desembarcan los bárbaros",
+"Every new settlement or city brings three landing rolls. Three barbarians conquer a coastal tile: it stops producing and blocks building, and buildings touching only conquered tiles score nothing. A 7 lets you take a card from anyone.": "Cada poblado o ciudad nuevo trae tres tiradas de desembarco. Tres bárbaros conquistan una casilla costera: deja de producir y bloquea la construcción, y las construcciones que solo tocan casillas conquistadas no puntúan. Un 7 te deja tomar una carta de cualquiera.",
+"Knight cards": "Cartas de caballero",
+"Knight card (wool, grain, ore) acts at once: Knighthood puts a knight by the castle, Swift Knight anywhere, and Intrigue and Treason move barbarians.": "La carta de caballero (lana, trigo, mineral) actúa al instante: Investidura pone un caballero junto al castillo, Caballero veloz en cualquier lado, e Intriga y Traición mueven bárbaros.",
+"Battles": "Batallas",
+"Ride moves each knight up to 3 paths (5 for a grain). At the end of every turn, a tile with more knights on its paths than barbarians is freed and the barbarians become prisoners: 2 prisoners = 1 VP. A die then decides which knights fall.": "Cabalgar mueve cada caballero hasta 3 caminos (5 por un trigo). Al final de cada turno, una casilla con más caballeros en sus caminos que bárbaros queda libre y los bárbaros pasan a ser prisioneros: 2 prisioneros = 1 PV. Luego un dado decide qué caballeros caen.",
+"Your wagon": "Tu carreta",
+"After building, drive your wagon. A bare path costs 2 movement, a road 1 (you pay a rival 1 gold to use theirs), a barbarian +2 more. A grain adds 2 once per turn. Your wagon stops when it reaches a trade hex.": "Después de construir, mueve tu carreta. Un camino vacío cuesta 2 de movimiento, uno con camino 1 (pagas 1 de oro a un rival para usar el suyo), un bárbaro +2 más. Un trigo suma 2 una vez por turno. Tu carreta se detiene al llegar a un hexágono comercial.",
+"Deliveries": "Entregas",
+"A trade hex hands you goods to carry: glass and marble go to the castle, tools to the quarry, sand to the glassworks. Each delivery is 1 VP plus gold. 2s and 12s are re-rolled and there is no Longest Road.": "Un hexágono comercial te da bienes para llevar: el vidrio y el mármol van al castillo, las herramientas a la cantera y la arena a la vidriería. Cada entrega da 1 PV más oro. Los 2 y 12 se vuelven a tirar y no hay Camino más largo.",
+"Baggage train": "Tren de carga",
+"Upgrades add movement, gold per delivery and the chance to drive barbarians off; the last level is worth 1 VP. A 7 or a Knight card moves a barbarian and robs the owner of the road it lands on.": "Las mejoras suman movimiento, oro por entrega y la opción de ahuyentar bárbaros; el último nivel vale 1 PV. Un 7 o una carta de Caballero mueve un bárbaro y roba al dueño del camino donde cae.",
+// ---------- rules library ----------
+"Base game": "Juego básico",
+"Catan: the base game": "Catan: el juego básico",
+"3 or 4 players · first to 10 victory points on their own turn.": "3 o 4 jugadores · gana el primero en llegar a 10 puntos de victoria en su propio turno.",
+"Setup": "Preparación",
+"19 land tiles: 4 forest, 4 pasture, 4 fields, 3 hills, 3 mountains, 1 desert. 18 number discs; 6s and 8s never touch.": "19 casillas de tierra: 4 bosques, 4 pastos, 4 campos, 3 colinas, 3 montañas, 1 desierto. 18 fichas de número; los 6 y 8 nunca se tocan.",
+"9 harbors: four 3:1 and one 2:1 for each resource.": "9 puertos: cuatro 3:1 y uno 2:1 por cada recurso.",
+"Placement goes in snake order (1-2-3-4-4-3-2-1): a settlement plus a road each round. Your second settlement pays one card from every tile it touches.": "La colocación va en orden de serpiente (1-2-3-4-4-3-2-1): un poblado y un camino por ronda. Tu segundo poblado da una carta de cada casilla que toca.",
+"A turn": "Un turno",
+"Roll two dice. Every settlement next to a tile with that number collects 1 card; a city collects 2. This happens on every player's roll.": "Tira dos dados. Cada poblado junto a una casilla con ese número cobra 1 carta; una ciudad cobra 2. Esto pasa en la tirada de cualquier jugador.",
+"Then trade and build in any order, and end your turn.": "Luego comercia y construye en cualquier orden, y termina tu turno.",
+"Rolling a 7": "Si sale un 7",
+"Nobody collects. Anyone holding more than 7 cards returns half (rounded down).": "Nadie cobra. Quien tenga más de 7 cartas devuelve la mitad (redondeando hacia abajo).",
+"The roller moves the robber to another tile, which then produces nothing, and steals one random card from a player with a building on it.": "Quien tiró mueve al ladrón a otra casilla, que deja de producir, y roba una carta al azar a un jugador con una construcción en ella.",
+"With other players, but only during the active player's turn.": "Con otros jugadores, pero solo durante el turno del jugador activo.",
+"With the bank at 4:1, or 3:1 / 2:1 if you own a settlement or city on a matching harbor.": "Con el banco a 4:1, o 3:1 / 2:1 si tienes un poblado o ciudad en el puerto correspondiente.",
+"Road: brick + lumber. Settlement: brick, lumber, wool, grain. City (upgrades a settlement): 2 grain + 3 ore. Development card: wool, grain, ore.": "Camino: arcilla + madera. Poblado: arcilla, madera, lana, trigo. Ciudad (mejora un poblado): 2 trigo + 3 mineral. Carta de desarrollo: lana, trigo, mineral.",
+"Settlements need a corner with no building on any neighbouring corner, and must touch one of your roads.": "Los poblados necesitan una esquina sin construcciones en las esquinas vecinas, y deben tocar uno de tus caminos.",
+"Each player has 15 roads, 5 settlements and 4 cities.": "Cada jugador tiene 15 caminos, 5 poblados y 4 ciudades.",
+"Development cards (25)": "Cartas de desarrollo (25)",
+"14 Knights (move the robber, steal), 5 Victory Points (secret), 2 Road Building, 2 Year of Plenty, 2 Monopoly.": "14 Caballeros (mueven al ladrón y roban), 5 Puntos de victoria (secretos), 2 Construcción de caminos, 2 Año de abundancia, 2 Monopolio.",
+"Play at most one per turn, never on the turn you bought it. A Knight may be played before rolling.": "Juega como máximo una por turno, nunca en el turno en que la compraste. Un Caballero se puede jugar antes de tirar.",
+"Scoring": "Puntuación",
+"Settlement 1, city 2, Victory Point card 1.": "Poblado 1, ciudad 2, carta de Punto de victoria 1.",
+"Longest Road (5+ connected pieces) and Largest Army (3+ Knights played) are worth 2 each. A tie never takes the card from its holder; an opponent's settlement can cut a road.": "El Camino más largo (5+ piezas unidas) y el Gran Ejército (3+ Caballeros jugados) valen 2 cada uno. Un empate nunca le quita la carta a quien la tiene; un poblado rival puede cortar un camino.",
+"If the bank can't pay everyone a resource, nobody gets it, unless only one player was owed it.": "Si el banco no puede pagarle un recurso a todos, nadie lo recibe, salvo que solo se le deba a un jugador.",
+"5–6 players": "5–6 jugadores",
+"Picked automatically when you choose 5 or 6 players. Goal stays at 10 VP.": "Se elige sola cuando juegas con 5 o 6. La meta sigue en 10 PV.",
+"What gets bigger": "Qué crece",
+"30 land tiles: 6 forest, 6 pasture, 6 fields, 5 hills, 5 mountains, 2 deserts, with 28 number discs.": "30 casillas de tierra: 6 bosques, 6 pastos, 6 campos, 5 colinas, 5 montañas, 2 desiertos, con 28 fichas de número.",
+"11 harbors (one more 3:1 and a second wool 2:1).": "11 puertos (un 3:1 más y un segundo 2:1 de lana).",
+"24 cards of each resource and 34 development cards (20 Knights, 3 each of Road Building, Year of Plenty and Monopoly, 5 Victory Points).": "24 cartas de cada recurso y 34 cartas de desarrollo (20 Caballeros, 3 de cada una de Construcción de caminos, Año de abundancia y Monopolio, 5 Puntos de victoria).",
+"Two new colours: green and brown.": "Dos colores nuevos: verde y marrón.",
+"The paired-players turn": "El turno en pareja",
+"Every turn has two players. The active player rolls, trades with anyone, builds and may play a card.": "Cada turno tiene dos jugadores. El jugador activo tira, comercia con cualquiera, construye y puede jugar una carta.",
+"Then the player three seats further on takes a paired turn: trade with the bank or harbors, build and play one development card. No dice and no trading with players.": "Luego el jugador tres puestos más allá juega un turno en pareja: comercia con el banco o los puertos, construye y juega una carta de desarrollo. Sin dados ni comercio con jugadores.",
+"Both players count as having their turn, so either can win.": "Ambos cuentan como si fuera su turno, así que cualquiera puede ganar.",
+"Older editions used a Special Building Phase instead, where everyone else could build (but not trade) after each turn. The current official rule is the paired turn, which this app uses.": "Las ediciones antiguas usaban en su lugar una Fase especial de construcción, en la que los demás podían construir (pero no comerciar) tras cada turno. La regla oficial actual es el turno en pareja, que es la que usa esta app.",
+"Scenario in this app: a": "Escenario en esta app: un mapa estilo",
+"Heading for New Shores": "Rumbo a nuevas costas",
+"-style map. A main island plus small islands, reshuffled every game. 14 VP to win.": ". Una isla principal más islas pequeñas, distintas en cada partida. Se gana con 14 PV.",
+"A ship costs lumber + wool and goes on a path that touches the sea. Each player has 15.": "Un barco cuesta madera + lana y va en un camino que toca el mar. Cada jugador tiene 15.",
+"A ship must connect to your settlement, city or another of your ships. Roads and ships only join at one of your settlements or cities.": "Un barco debe conectar con tu poblado, ciudad u otro de tus barcos. Caminos y barcos solo se unen en uno de tus poblados o ciudades.",
+"Once per turn you may move one ship at the open end of a route (not joined to your pieces at that end). You can't move a ship built this turn, or one next to the pirate.": "Una vez por turno puedes mover un barco del extremo abierto de una ruta (sin unir a tus piezas en ese extremo). No puedes mover un barco construido este turno ni uno junto al pirata.",
+"On a 7 or a Knight you move either the robber (onto land) or the pirate (onto sea).": "Con un 7 o un Caballero mueves al ladrón (a tierra) o al pirata (al mar).",
+"The pirate stops ships being built or moved on its six paths and lets you steal from a player with a ship there. It starts off the board.": "El pirata impide construir o mover barcos en sus seis caminos y te deja robar a un jugador con un barco allí. Empieza fuera del tablero.",
+"Gold fields": "Campos de oro",
+"When a gold field's number rolls, you pick any resource: 1 per settlement, 2 per city.": "Cuando sale el número de un campo de oro, eliges cualquier recurso: 1 por poblado, 2 por ciudad.",
+"New islands": "Islas nuevas",
+"Starting settlements go on the main island.": "Los poblados iniciales van en la isla principal.",
+"Your first settlement on each small island earns 2 extra victory points, even if someone got there first.": "Tu primer poblado en cada isla pequeña da 2 puntos de victoria extra, aunque otro haya llegado antes.",
+"Longest Road becomes Longest Trade Route: roads and ships both count.": "El Camino más largo pasa a ser la Ruta comercial más larga: cuentan caminos y barcos.",
+"Played to 13 VP (17 with Seafarers in this app). Development cards and Largest Army are removed; progress cards replace them.": "Se juega a 13 PV (17 con Navegantes en esta app). Se quitan las cartas de desarrollo y el Gran Ejército; las cartas de progreso los reemplazan.",
+"Setup and dice": "Preparación y dados",
+"Your second starting building is a city.": "Tu segunda construcción inicial es una ciudad.",
+"You roll a red die, a yellow die and an event die. The event die either moves the barbarian ship one step or shows a coloured city gate. On a gate, players whose improvement level in that colour covers the red die draw a progress card of that colour.": "Tiras un dado rojo, uno amarillo y uno de eventos. El dado de eventos mueve el barco bárbaro un paso o muestra una puerta de ciudad de color. Con una puerta, quienes tengan en ese color un nivel de mejora que cubra el dado rojo sacan una carta de progreso de ese color.",
+"Commodities and city improvements": "Mercancías y mejoras de ciudad",
+"Cities on forest, pasture and mountains produce 1 resource plus 1 commodity: paper, cloth or coin.": "Las ciudades en bosque, pasto y montaña producen 1 recurso y 1 mercancía: papel, tela o moneda.",
+"Commodities buy improvements on three tracks: science (paper), trade (cloth) and politics (coin). Level n costs n commodities.": "Las mercancías compran mejoras en tres vías: ciencia (papel), comercio (tela) y política (moneda). El nivel n cuesta n mercancías.",
+"Level 3 unlocks a power: trade lets you swap commodities 2:1; politics lets knights become mighty; science gives you a free resource on any roll that pays you nothing.": "El nivel 3 desbloquea un poder: comercio te deja cambiar mercancías 2:1; política permite caballeros poderosos; ciencia te da un recurso gratis en cualquier tirada que no te pague nada.",
+"The first player to reach level 4 in a track turns a city into that track's metropolis (+2 VP). Reaching level 5 first takes it from them.": "El primero en llegar al nivel 4 en una vía convierte una ciudad en la metrópolis de esa vía (+2 PV). Quien llegue primero al nivel 5 se la quita.",
+"Knights and barbarians": "Caballeros y bárbaros",
+"Knights cost wool + ore and are activated with grain. Basic, strong and mighty knights have strength 1, 2 and 3 (two of each per player).": "Los caballeros cuestan lana + mineral y se activan con trigo. Los básicos, fuertes y poderosos tienen fuerza 1, 2 y 3 (dos de cada uno por jugador).",
+"An active knight can move, push away a weaker knight or chase off the robber, then goes inactive.": "Un caballero activo puede moverse, expulsar a uno más débil o ahuyentar al ladrón, y luego queda inactivo.",
+"When the barbarian ship lands, compare the number of cities on the island with the total strength of active knights. If the knights win, the strongest defender gets a Defender of Catan card (1 VP). If the barbarians win, the weakest defender loses a city.": "Cuando llega el barco bárbaro, se compara el número de ciudades de la isla con la fuerza total de los caballeros activos. Si ganan los caballeros, el mejor defensor recibe una carta de Defensor de Catan (1 PV). Si ganan los bárbaros, el peor defensor pierde una ciudad.",
+"The robber stays in the desert until the first barbarian attack.": "El ladrón se queda en el desierto hasta el primer ataque bárbaro.",
+"Other rules": "Otras reglas",
+"City walls cost 2 brick and let you hold 2 more cards before a 7 hurts (up to 3 walls). A pillaged city loses its wall.": "Las murallas cuestan 2 arcilla y te dejan guardar 2 cartas más antes de que un 7 te afecte (hasta 3 murallas). Una ciudad saqueada pierde su muralla.",
+"Progress cards (18 per colour) include Alchemist, Inventor, Merchant, Bishop, Spy, Wedding and more. You may hold 4; a 5th drawn on someone else's turn must go back at once, on your own turn by its end. Printer and Constitution score 1 VP as soon as they're drawn. Play as many as you like on your turn; only the Alchemist comes before the dice.": "Las cartas de progreso (18 por color) incluyen Alquimista, Inventor, Mercader, Obispo, Espía, Boda y más. Puedes tener 4; una quinta sacada en el turno de otro se devuelve enseguida, y en tu turno, al terminarlo. Imprenta y Constitución dan 1 PV apenas se sacan. Juega las que quieras en tu turno; solo el Alquimista va antes de los dados.",
+"The Merchant lets you trade one tile's resource 2:1 and is worth 1 VP while you hold it.": "El Mercader te deja cambiar el recurso de una casilla 2:1 y vale 1 PV mientras lo tengas.",
+"In this app": "En esta app",
+"to recruit, promote, activate or use knights, and": "para reclutar, ascender, activar o usar caballeros, y",
+"to climb the three tracks. Progress cards sit in your hand; tap one to play it.": "para subir en las tres vías. Las cartas de progreso quedan en tu mano; toca una para jugarla.",
+"When you take a metropolis it goes on your most productive city automatically.": "Cuando consigues una metrópolis, va sola a tu ciudad más productiva.",
+"When the barbarians win and a player has no settlement pieces left, the pillaged city is removed.": "Cuando ganan los bárbaros y un jugador ya no tiene poblados en reserva, la ciudad saqueada se quita.",
+"For Commercial Harbor, each opponent gives you their most plentiful commodity.": "Con Puerto comercial, cada rival te da la mercancía que más tenga.",
+"A box of five scenarios and several small variants, each changing one part of the game.": "Una caja con cinco escenarios y varias variantes pequeñas, cada una cambia una parte del juego.",
+"Scenarios": "Escenarios",
+"The Fishermen of Catan:": "Los pescadores de Catan:",
+"a lake and fishing grounds produce fish tokens you spend on small actions. Whoever holds the old boot needs one extra point to win.": "un lago y caladeros producen fichas de peces que gastas en pequeñas acciones. Quien tenga la bota vieja necesita un punto más para ganar.",
+"The Rivers of Catan:": "Los ríos de Catan:",
+"building along rivers and bridges earns gold coins. The wealthiest settler gains a point; the poorest lose points.": "construir junto a ríos y puentes da monedas de oro. El colono más rico gana un punto; los más pobres pierden puntos.",
+"The Caravans:": "Las caravanas:",
+"players vote to extend camel lines from a desert oasis. Settlements beside camels score extra, and camel paths boost road length.": "los jugadores votan para alargar filas de camellos desde un oasis. Los poblados junto a camellos puntúan extra, y los caminos con camellos alargan la ruta.",
+"Barbarian Attack:": "Ataque bárbaro:",
+"barbarians land on the coast and shut down tiles. Knights drive them off for points and gold.": "los bárbaros desembarcan en la costa y bloquean casillas. Los caballeros los echan a cambio de puntos y oro.",
+"Traders & Barbarians:": "Mercaderes y Bárbaros:",
+"wagons carry goods between a castle, a quarry and a glassworks for points and gold, while barbarians roam.": "las carretas llevan bienes entre un castillo, una cantera y una vidriería por puntos y oro, mientras los bárbaros merodean.",
+"Harbormaster:": "Maestro del puerto:",
+"the player with the most harbor points (at least 3) scores 2 VP.": "el jugador con más puntos de puerto (al menos 3) suma 2 PV.",
+"Friendly Robber:": "Ladrón amistoso:",
+"the robber can't hit a player with 2 or fewer points.": "el ladrón no puede atacar a un jugador con 2 puntos o menos.",
+"Event cards:": "Cartas de evento:",
+"a deck replaces the dice so every number comes up in a more even spread.": "un mazo reemplaza los dados para que cada número salga de forma más pareja.",
+"Catan for two:": "Catan para dos:",
+"neutral players and trade tokens.": "jugadores neutrales y fichas de comercio.",
+"Details the app adds or settles": "Detalles que la app añade o resuelve",
+"Fishermen:": "Pescadores:",
+"29 fish tokens (1–3 fish) plus the old boot; you hold at most 7. Fish buy: 2 remove the robber, 3 steal a resource, 4 take a resource, 5 a free road, 7 a development card.": "29 fichas de peces (1–3 peces) más la bota vieja; tienes como máximo 7. Con peces compras: 2 quitar al ladrón, 3 robar un recurso, 4 tomar un recurso, 5 un camino gratis, 7 una carta de desarrollo.",
+"Rivers:": "Ríos:",
+"bridges cost 2 brick + 1 lumber and pay 3 gold; up to 3 each. The Wealthiest Settler is worth +1, every Poor Settler −2. 2 gold buy a resource, twice a turn.": "los puentes cuestan 2 arcilla + 1 madera y pagan 3 de oro; hasta 3 cada uno. El Colono más rico vale +1, cada Colono pobre −2. 2 de oro compran un recurso, dos veces por turno.",
+"Caravans:": "Caravanas:",
+"one camel per turn in which someone built a settlement or city; 22 camels in all; 12 VP to win.": "un camello por cada turno en que alguien construyó un poblado o ciudad; 22 camellos en total; se gana con 12 PV.",
+"no robber; a 7 takes a card from any player. Knight cards act at once. Knights move 3 paths (5 for a grain) and may never end beside the castle. 12 VP.": "sin ladrón; un 7 toma una carta de cualquier jugador. Las cartas de caballero actúan al instante. Los caballeros se mueven 3 caminos (5 por un trigo) y nunca terminan junto al castillo. 12 PV.",
+"start with 5 gold and a city; wagons pay 1 gold per rival road; 2s and 12s are re-rolled. 13 VP.": "empiezas con 5 de oro y una ciudad; las carretas pagan 1 de oro por camino rival; los 2 y 12 se vuelven a tirar. 13 PV.",
+"Choose a scenario under New game. The three variants (Friendly Robber, Event Cards, Harbormaster) combine with any game.": "Elige un escenario en Nueva partida. Las tres variantes (Ladrón amistoso, Cartas de evento, Maestro del puerto) se combinan con cualquier partida.",
+"Scenario boards are generated for your player count rather than copied from the printed layouts.": "Los tableros de escenario se generan según el número de jugadores en vez de copiar los mapas impresos.",
+"Catan for Two is left out, since the app plays 3–6.": "Catan para dos queda fuera, ya que la app se juega con 3–6.",
+"Caravans: the single highest bid places the camel; ties go to the player who just finished (no coalition haggling).": "Caravanas: la puja más alta coloca el camello; los empates los decide quien acaba de terminar (sin pactos entre jugadores).",
+"Barbarian Attack: prisoners are shared round-robin starting with the player who had the most knights there, and anyone left out gets 3 gold (the box uses dice for this).": "Ataque bárbaro: los prisioneros se reparten por turnos empezando por quien tenía más caballeros allí, y quien se quede sin ninguno recibe 3 de oro (la caja usa dados para esto).",
+"Traders & Barbarians: reaching any corner of a trade hex counts as reaching its plaza, and baggage-train upgrade costs are estimates.": "Mercaderes y Bárbaros: llegar a cualquier esquina de un hexágono comercial cuenta como llegar a su plaza, y los costos de mejora del tren de carga son estimados.",
+"An exploration campaign. The sea starts hidden and is revealed as ships sail out.": "Una campaña de exploración. El mar empieza oculto y se revela a medida que salen los barcos.",
+"Main ideas": "Ideas principales",
+"Ships move each turn and carry settlers and crews.": "Los barcos se mueven cada turno y llevan colonos y tripulaciones.",
+"Settlers found harbor settlements on newly found land.": "Los colonos fundan poblados portuarios en tierras recién descubiertas.",
+"Crews carry out missions.": "Las tripulaciones cumplen misiones.",
+"Learn exploring and settling new land.": "Aprende a explorar y colonizar tierras nuevas.",
+"Pirate Lairs:": "Guaridas piratas:",
+"send crews to capture pirate lairs.": "envía tripulaciones a capturar guaridas piratas.",
+"Fish for Catan:": "Pescado para Catan:",
+"catch fish and bring it to the council.": "pesca y lleva el pescado al consejo.",
+"Spices for Catan:": "Especias para Catan:",
+"win the favour of the spice islands.": "gánate el favor de las islas de especias.",
+"Explorers & Pirates:": "Exploradores y Piratas:",
+"all the missions together.": "todas las misiones juntas.",
+"It is designed to be played with the base game (and its 5–6 player extension), not mixed with Seafarers or Cities & Knights.": "Está pensado para jugarse con el juego básico (y su ampliación para 5–6), no mezclado con Navegantes ni Ciudades y Caballeros.",
+"Core rules": "Reglas básicas",
+"No cities, development cards, Longest Road or robber. Settlements 1 VP, harbor settlements (2 grain + 2 ore) 2 VP.": "Sin ciudades, cartas de desarrollo, Camino más largo ni ladrón. Poblados 1 PV, poblados portuarios (2 trigo + 2 mineral) 2 PV.",
+"Trade with the bank at 3:1; sell 3 of a kind for 1 gold; 2 gold buy a resource twice a turn. A roll that pays you nothing gives 1 gold.": "Comercia con el banco a 3:1; vende 3 iguales por 1 de oro; 2 de oro compran un recurso dos veces por turno. Una tirada que no te da nada te da 1 de oro.",
+"Ships (lumber + wool, 3 each) start beside your harbor settlements and move 4 steps (+2 for a wool). Up to 2 ships share a route. Touching fog discovers the tile and ends the move: terrain pays 1 of its resource, anything else 2 gold.": "Los barcos (madera + lana, 3 cada uno) salen junto a tus poblados portuarios y se mueven 4 pasos (+2 por una lana). Hasta 2 barcos comparten una ruta. Tocar la niebla descubre la casilla y termina el movimiento: el terreno paga 1 de su recurso, lo demás 2 de oro.",
+"Settlers (settlement cost) ride ships and found settlements on free land. Your first settlement in each unexplored area must come by ship.": "Los colonos (cuestan como un poblado) viajan en barco y fundan poblados en tierra libre. Tu primer poblado en cada zona inexplorada debe llegar en barco.",
+"After you sail, you can't build or trade again that turn.": "Después de navegar, ya no puedes construir ni comerciar ese turno.",
+"Missions": "Misiones",
+"crews (ore + wool) land on a lair; the third crew captures it. Captors get 2 gold and a mission step, the hero one more. The freed gold field pays 2 gold per building. A 7 sends your pirate ship out: it robs ships and charges 1 gold tribute to sail its waters; unmoved ships beside it can chase it on a 6.": "las tripulaciones (mineral + lana) desembarcan en una guarida; la tercera la captura. Los captores ganan 2 de oro y un paso de misión, el héroe uno más. El campo de oro liberado paga 2 de oro por construcción. Un 7 envía tu barco pirata: roba barcos y cobra 1 de oro de tributo por navegar sus aguas; los barcos sin mover a su lado pueden ahuyentarlo con un 6.",
+"once per turn roll for a fish haul, catch it with an empty ship and bring it to the Council.": "una vez por turno tira por peces, captúralos con un barco vacío y llévalos al Consejo.",
+"land a crew on a spice village for a sack of spice and a lasting advantage.": "desembarca una tripulación en una aldea de especias por un saco de especias y una ventaja duradera.",
+"Mission tracks score 1 VP at 1 step, 2 at 3, 3 at 6, plus 1 VP for the leader. Goals: Land Ho! 8, Pirate Lairs 12, Fish 15, Spices 15, the full game 17.": "Las vías de misión dan 1 PV con 1 paso, 2 con 3, 3 con 6, más 1 PV para quien va primero. Metas: ¡Tierra a la vista! 8, Guaridas piratas 12, Pescado 15, Especias 15, el juego completo 17.",
+"Every scenario uses the free set-up, and the fogged areas are generated for your player count.": "Todos los escenarios usan la preparación libre, y las zonas con niebla se generan según el número de jugadores.",
+"When a lair falls, all crews go straight back to their owners.": "Cuando cae una guarida, todas las tripulaciones vuelven directo a sus dueños.",
+"The Council takes deliveries from any ship touching its tile.": "El Consejo recibe entregas de cualquier barco que toque su casilla.",
+"Combining": "Combinar",
+"Combining expansions": "Combinar expansiones",
+"What the official rules allow, and how people usually mix them.": "Lo que permiten las reglas oficiales y cómo se suelen mezclar.",
+"Seafarers + Cities & Knights": "Navegantes + Ciudades y Caballeros",
+"Officially supported and the most popular pairing.": "Combinación oficial y la más popular.",
+"Use a map with one big island, such as": "Usa un mapa con una isla grande, como",
+"or": "o",
+"Through the Desert": "A través del desierto",
+". Maps made of many small islands don't work, because knights and barbarians need connected land.": ". Los mapas de muchas islas pequeñas no sirven, porque caballeros y bárbaros necesitan tierra conectada.",
+"Knights stay on land. Progress cards that build roads can build ships instead.": "Los caballeros se quedan en tierra. Las cartas de progreso que construyen caminos pueden construir barcos.",
+"Traders & Barbarians + others": "Mercaderes y Bárbaros + otras",
+"Its scenarios can be combined with each other, with Seafarers and with Cities & Knights, using the official combination sheets published by CATAN.": "Sus escenarios se pueden combinar entre sí, con Navegantes y con Ciudades y Caballeros, usando las hojas de combinación oficiales de CATAN.",
+"With Cities & Knights, knights take over the job of fighting barbarians in": "Con Ciudades y Caballeros, los caballeros se encargan de combatir a los bárbaros en",
+"A self-contained campaign for the base game. It isn't officially combined with Seafarers or Cities & Knights.": "Una campaña independiente para el juego básico. No se combina oficialmente con Navegantes ni con Ciudades y Caballeros.",
+"Each expansion has its own 5–6 player extension, and each needs the base 5–6 extension too.": "Cada expansión tiene su propia ampliación para 5–6, y cada una necesita también la ampliación básica para 5–6.",
+"In this app: base, Seafarers and Cities & Knights all work with 5 or 6 players and use the paired-players turn.": "En esta app: el básico, Navegantes y Ciudades y Caballeros funcionan con 5 o 6 jugadores y usan el turno en pareja.",
+"Traders & Barbarians and Explorers & Pirates scenarios are played on their own; the T&B variants mix with any game.": "Los escenarios de Mercaderes y Bárbaros y de Exploradores y Piratas se juegan solos; las variantes de MyB se combinan con cualquier partida.",
+"Seafarers and Cities & Knights can be switched on together: knights stay on land, Road Building can place ships, the robber and pirate wait for the first barbarian attack, and the goal is 17 VP.": "Navegantes y Ciudades y Caballeros se pueden activar juntos: los caballeros se quedan en tierra, Construcción de caminos puede poner barcos, el ladrón y el pirata esperan al primer ataque bárbaro, y la meta es 17 PV.",
+};
+window.ES_RULES = [
+// Composite strings joined with " · " are translated piece by piece.
+[/^.+ · .+$/, s => s.split(' · ').map(p => tr(p)).join(' · ')],
+// ---------- strings that wrap another translatable string ----------
+[/^(.+) First to (\d+) VP wins\.$/, (m, b, n) => tr(b) + ' Gana el primero en llegar a ' + n + ' PV.'],
+[/^(.+) Choose (\d+) resources? from the bank\.$/, (m, w, n) => tr(w) + ' Elige ' + n + (n === '1' ? ' recurso' : ' recursos') + ' del banco.'],
+[/^Your gold field paid out\.$/, 'Tu campo de oro pagó.'],
+[/^Your Aqueduct pays out when a roll gives you nothing\.$/, 'Tu Acueducto paga cuando una tirada no te da nada.'],
+[/^Take any 1 resource\.$/, 'Toma 1 recurso cualquiera.'],
+// ---------- status line, seats, top bar ----------
+[/^(.+) is taking a turn…$/, 'Turno de $1…'],
+[/^(.+) is taking the paired turn…$/, 'Turno en pareja de $1…'],
+[/^(.+) is placing starting pieces…$/, (m, n) => n === 'You' ? 'Colocas tus piezas iniciales…' : n + ' coloca sus piezas iniciales…'],
+[/^(.+) lost connection\. Waiting for them to come back…$/, '$1 perdió la conexión. Esperando a que vuelva…'],
+[/^Waiting for (.+)…$/, 'Esperando a $1…'],
+[/^(.+) won\. Start a new game whenever you like\.$/, 'Ganó $1. Empieza otra partida cuando quieras.'],
+[/^Let the AI play for (.+)$/, 'Que la IA juegue por $1'],
+[/^(.+) is back$/, '$1 volvió'],
+[/^(.+) lost connection$/, '$1 perdió la conexión'],
+[/^Unofficial CATAN clone$/, 'Clon no oficial de CATAN'],
+[/^AI$/, 'IA'],
+[/^easy$/, 'fácil'], [/^normal$/, 'normal'], [/^hard$/, 'difícil'],
+[/^(.+) \(you\)$/, '$1 (tú)'],
+[/^(.+) \(AI\)$/, (m, c) => tr(c) + ' (IA)'],
+[/^(.+) difficulty$/, (m, c) => 'Dificultad de ' + tr(c)],
+[/^Seat (\d+)$/, 'Puesto $1'],
+[/^Rejoin room (.+)$/, 'Volver a la sala $1'],
+[/^1 card$/, '1 carta'],
+[/^(\d+) cards$/, '$1 cartas'],
+[/^(\d+) dev$/, '$1 desarr.'],
+[/^(\d+) progress$/, '$1 prog.'],
+[/^Knights (\d+)(\/\d+)?$/, 'Caballeros $1$2'],
+[/^Road (\d+)$/, 'Camino $1'],
+[/^Route (\d+)$/, 'Ruta $1'],
+[/^Islands (\d+)$/, 'Islas $1'],
+[/^Gold (\d+)$/, 'Oro $1'],
+[/^Left: (\d+) roads$/, 'Quedan: $1 caminos'],
+[/^(\d+) ships$/, '$1 barcos'],
+[/^(\d+) settlements$/, '$1 poblados'],
+[/^(\d+) cities$/, '$1 ciudades'],
+[/^(\d+) cities vs (\d+) knights$/, '$1 ciudades vs $2 caballeros'],
+[/^robber asleep$/, 'ladrón dormido'],
+[/^(\d+) players$/, '$1 jugadores'],
+[/^first to (\d+) VP$/, 'gana con $1 PV'],
+[/^(\d+) VP$/, '$1 PV'],
+[/^Trade (\d+)$/, 'Comerciar $1'],
+[/^(.+) left in the bank$/, (m, r) => tr(r) + ' en el banco'],
+[/^Harbor: trade 2 (.+) for 1$/, (m, r) => 'Puerto: cambia 2 de ' + tr(r) + ' por 1'],
+[/^tile (-?\d+),(-?\d+)$/, 'casilla $1,$2'],
+[/^(.+) progress card$/, (m, c) => 'Carta de progreso: ' + tr(c)],
+[/^(Brick|Lumber|Wool|Grain|Ore|Paper|Cloth|Coin|Knight|Victory Point|Road Building|Year of Plenty|Monopoly|Swift Journey) card$/, (m, c) => 'Carta: ' + tr(c)],
+[/^· (\d+) picked$/, '· $1 elegidas'],
+[/^Release to play (.+)$/, (m, c) => 'Suelta para jugar ' + tr(c)],
+[/^(.+) has no effect right now$/, (m, c) => tr(c) + ' no tiene efecto ahora'],
+[/^You only need to pick (\d+)$/, 'Solo tienes que elegir $1'],
+[/^A 7 was rolled: tap (\d+) cards in your hand to discard them$/, 'Salió un 7: toca $1 cartas de tu mano para descartarlas'],
+[/^(.+)'s Saboteur: choose (\d+) cards to discard$/, 'Saboteador de $1: elige $2 cartas para descartar'],
+[/^(.+)'s Wedding: choose (\d+) gift cards?$/, 'Boda de $1: elige $2 cartas de regalo'],
+[/^step (\d+) of (\d+)$/, 'paso $1 de $2'],
+// setup summary pieces
+[/^classic island$/, 'isla clásica'], [/^large island$/, 'isla grande'], [/^Seafarers islands$/, 'islas de Navegantes'],
+[/^event cards$/, 'cartas de evento'],
+[/^AI trading: (\w+)$/, (m, w) => 'IA ' + tr(w[0].toUpperCase() + w.slice(1)).toLowerCase()],
+// ---------- modals ----------
+[/^Trade with (.+)$/, 'Comerciar con $1'],
+[/^(.+) offers a trade$/, '$1 propone un trato'],
+[/^(.+) ruled the island$/, '$1 dominó la isla'],
+[/^(.+) wins$/, '¡Gana $1!'],
+[/^Add (.+)$/, (m, r) => 'Añadir ' + tr(r)],
+[/^Remove (.+)$/, (m, r) => 'Quitar ' + tr(r)],
+[/^have (\d+)$/, 'tienes $1'],
+[/^has (\d+)$/, 'tiene $1'],
+[/^bank (\d+)$/, 'banco $1'],
+[/^Take (\d+) \/ (\d+)$/, 'Tomar $1 / $2'],
+[/^Face-down card (\d+)$/, 'Carta boca abajo $1'],
+[/^(Trade|Politics|Science) deck$/, (m, d) => 'Mazo de ' + tr(d).toLowerCase()],
+[/^(\d+) left$/, 'quedan $1'],
+[/^Buy 1 resource for 2 gold \((\d+) left this turn$/, 'Comprar 1 recurso por 2 de oro (quedan $1 este turno'],
+[/^you have (\d+)\)$/, 'tienes $1)'],
+[/^Build level (\d)( ·)?$/, 'Subir a nivel $1$2'],
+[/^Metropolis: (.+)$/, (m, n) => 'Metrópolis: ' + (n === 'unclaimed' ? 'sin dueño' : tr(n))],
+[/^Progress cards when the red die shows \(build level 1 first\)$/, 'Cartas de progreso: construye antes el nivel 1'],
+[/^Progress cards when the red die shows (.+)$/, 'Cartas de progreso cuando el dado rojo saca $1'],
+[/^Your active strength (\d+) of (\d+)$/, 'Tu fuerza activa: $1 de $2'],
+[/^barbarians (\d+)\/7$/, 'bárbaros $1/7'],
+[/^they attack with the island's (\d+) cities\.$/, 'atacan con las $1 ciudades de la isla.'],
+[/^Give (.+) one resource\. They hand you a commodity in return\.$/, 'Dale un recurso a $1. A cambio te da una mercancía.'],
+[/^Take 2 cards from (.+)'s hand\.$/, 'Toma 2 cartas de la mano de $1.'],
+[/^Take one of (.+)'s progress cards\.$/, 'Toma una de las cartas de progreso de $1.'],
+[/^Every opponent gives you up to (\d+) of the type you name\.$/, 'Cada rival te da hasta $1 del tipo que nombres.'],
+[/^Choose a card to give to (.+)\.$/, 'Elige una carta para darle a $1.'],
+[/^You hold (\d+) fish in (\d+) tokens \((.*)\)\. Tokens don't give change\.$/, 'Tienes $1 peces en $2 fichas ($3). Las fichas no dan vuelto.'],
+[/^(\d+) fish$/, '$1 peces'],
+[/^Your harbor holds (.+)\.$/, (m, c) => 'Tu puerto tiene ' + c.replace(/\bsettler\b/g, 'colono').replace(/\bcrew\b/g, 'tripulación').replace(/ and /g, ' y ') + '.'],
+// ---------- prompts with numbers or names ----------
+[/^Road Building: place free road or ship (\d) of 2$/, 'Construcción de caminos: coloca camino o barco gratis ($1 de 2)'],
+[/^Road Building: place free road (\d) of 2$/, 'Construcción de caminos: coloca camino gratis ($1 de 2)'],
+[/^Smith: choose a knight to promote for free \((\d) of 2, Esc to stop\)$/, 'Herrero: elige un caballero para ascender gratis ($1 de 2, Esc para parar)'],
+[/^(Seven|Knight): pick a barbarian to move$/, (m, w) => tr(w) + ': elige un bárbaro para mover'],
+[/^(Seven|Knight): pick the path for that barbarian$/, (m, w) => tr(w) + ': elige el camino para ese bárbaro'],
+[/^Move this knight \(glowing paths; 4-5 steps cost a grain\), or Esc to leave it$/, 'Mueve este caballero (caminos brillantes; 4-5 pasos cuestan un trigo), o Esc para dejarlo'],
+[/^Move this knight \(glowing paths\), or Esc to leave it$/, 'Mueve este caballero (caminos brillantes), o Esc para dejarlo'],
+[/^Move your wagon \(carrying (\w+) to the (.+)\)\. (\d+) MP(, \+2 more for a grain)?$/, (m, g, h, n, b) => 'Mueve tu carreta (llevando ' + tr(g) + ' a ' + ({Castle: 'el castillo', Quarry: 'la cantera', Glassworks: 'la vidriería'}[h] || tr(h)) + '). ' + n + ' PM' + (b ? ', +2 más por un trigo' : '')],
+[/^Move your wagon to any trade hex\. (\d+) MP(, \+2 more for a grain)?$/, (m, n, b) => 'Mueve tu carreta a cualquier hexágono comercial. ' + n + ' PM' + (b ? ', +2 más por un trigo' : '')],
+[/^Esc cancels$/, 'Esc cancela'],
+[/^Esc stays put$/, 'Esc se queda'],
+[/^You rolled (\d+): choose where the barbarian goes$/, 'Sacaste $1: elige adónde va el bárbaro'],
+[/^Sail to a glowing route \((\d+) steps; fog stops the ship; pirate waters cost 1 gold\)$/, 'Navega a una ruta brillante ($1 pasos; la niebla detiene el barco; las aguas piratas cuestan 1 de oro)'],
+// ---------- log lines and banners ----------
+[/^Opening rolls: (.+)\.$/, 'Tiradas iniciales: $1.'],
+[/^reached (\d+) VP and won the game$/, 'llegó a $1 PV y ganó la partida'],
+[/^· (\d+) segments$/, '· $1 tramos'],
+[/^· (\d+) knights$/, '· $1 caballeros'],
+[/^Longest Road: (.+)$/, 'Camino más largo: $1'],
+[/^Longest Trade Route: (.+)$/, 'Ruta comercial más larga: $1'],
+[/^Largest Army: (.+)$/, 'Gran Ejército: $1'],
+[/^Harbormaster: (.+)$/, 'Maestro del puerto: $1'],
+[/^(.+) reached a new island \+2$/, '$1 llegó a una isla nueva +2'],
+[/^The robber blocked (.+)$/, (m, t) => 'El ladrón bloqueó ' + tr(t)],
+[/^The bank ran short of (.+), so nobody collects it$/, (m, r) => 'Al banco le falta ' + tr(r) + ', así que nadie lo cobra'],
+[/^moved the robber to (.+)$/, (m, t) => 'movió al ladrón a ' + tr(t)],
+[/^(.+) stole your (.+)$/, (m, n, r) => n + ' te robó ' + tr(r)],
+[/^The barbarian ship sails closer \((\d+)\/7\)$/, 'El barco bárbaro se acerca ($1/7)'],
+[/^Barbarians (\d+)\/7$/, 'Bárbaros $1/7'],
+[/^The barbarians land with strength (\d+) against knights of strength (\d+)$/, 'Los bárbaros desembarcan con fuerza $1 contra caballeros de fuerza $2'],
+[/^drew (.+): \+1 VP$/, (m, c) => 'sacó ' + tr(c) + ': +1 PV'],
+[/^(.+): (Printer|Constitution) \+1 VP$/, (m, n, c) => n + ': ' + tr(c) + ' +1 PV'],
+[/^built (Trade|Politics|Science) level (\d)( and gains the (.+))?$/, (m, t, l, x, a) => 'construyó ' + tr(t) + ' nivel ' + l + (a ? ' y obtiene ' + ({'Trading House': 'la Casa de comercio', 'Fortress': 'la Fortaleza', 'Aqueduct': 'el Acueducto'}[a] || a) : '')],
+[/^(.+): (Trade|Politics|Science) metropolis$/, (m, n, t) => n + ': metrópolis de ' + tr(t).toLowerCase()],
+[/^set the dice to (\d) and a red (\d)$/, 'puso los dados en $1 y un rojo $2'],
+[/^swapped the (\d+) and (\d+) discs$/, 'intercambió las fichas $1 y $2'],
+[/^took (\d+)$/, 'tomó $1'],
+[/^traded (\d+)$/, 'cambió $1'],
+[/^discarded (\d+)$/, 'descartó $1'],
+[/^sold (\d+)$/, 'vendió $1'],
+[/^collected starting resources (\d+)$/, 'cobró sus recursos iniciales: $1'],
+[/^took (\d+) cards? from$/, 'le tomó $1 cartas a'],
+[/^placed the merchant on (.+): \+1 VP$/, (m, t) => 'puso al mercader en ' + tr(t) + ': +1 PV'],
+[/^collected (\d+)$/, 'cobró $1'],
+[/^gave (\d+) cards? as a wedding gift$/, 'dio $1 cartas como regalo de bodas'],
+[/^gave (\d+)$/, 'dio $1'],
+[/^You collected (\d+) (.+)$/, (m, n, r) => 'Cobraste ' + n + ' de ' + tr(r)],
+[/^bought (\d+)$/, 'compró $1'],
+[/^offered (\d+)$/, 'ofreció $1'],
+[/^for (\d+)$/, 'por $1'],
+[/^gains (\d+) gold (.+)$/, (m, n, w) => 'gana ' + n + ' de oro ' + ({'for a road along the river': 'por un camino junto al río', 'for a settlement on the river': 'por un poblado junto al río', 'for the bridge': 'por el puente', 'from Treason': 'por Traición', 'for joining the battle': 'por sumarse a la batalla', 'for a fallen knight': 'por un caballero caído', 'for the discovery': 'por el descubrimiento', 'for capturing a pirate lair': 'por capturar una guarida pirata', 'from a gold field': 'de un campo de oro'}[w] || w)],
+[/^spent (\d+) fish: (.+)$/, (m, n, a) => 'gastó ' + n + ' peces: ' + tr(a[0].toUpperCase() + a.slice(1)).toLowerCase()],
+[/^(.+) caught the old boot$/, '$1 pescó la bota vieja'],
+[/^Fish (\d+)$/, 'Peces $1'],
+[/^old boot$/, 'bota vieja'],
+[/^Fishing ground$/, 'Caladero'],
+[/^Bridges left (\d+)$/, 'Puentes: quedan $1'],
+[/^Camel vote: (.+)$/, 'Votación del camello: $1'],
+[/^Barbarians conquer (.+)$/, (m, t) => 'Los bárbaros conquistan ' + tr(t)],
+[/^Barbarians land on the coast \(rolled (.+)\)$/, 'Los bárbaros desembarcan en la costa (salió $1)'],
+[/^Knights drive the barbarians off (.+?) (\d+): (.+) take (\d+) prisoners?$/, (m, t, n, who, k) => 'Los caballeros echan a los bárbaros de ' + tr(t) + ' ' + n + ': ' + who + (who.includes(',') ? ' toman ' : ' toma ') + k + (k === '1' ? ' prisionero' : ' prisioneros')],
+[/^(\d+) barbarians?$/, (m, n) => n + (n === '1' ? ' bárbaro' : ' bárbaros')],
+[/^Prisoners (\d+)$/, 'Prisioneros $1'],
+[/^(.+)'s knight$/, 'Caballero de $1'],
+[/^(.+)'s (basic|strong|mighty) knight \((active|inactive)\)$/, (m, n, l, a) => 'Caballero ' + {basic: 'básico', strong: 'fuerte', mighty: 'poderoso'}[l] + ' de ' + n + (a === 'active' ? ' (activo)' : ' (inactivo)')],
+[/^delivered (\w+) to the (.+): \+1 VP$/, (m, g, h) => 'entregó ' + tr(g) + ' en ' + ({Castle: 'el castillo', Quarry: 'la cantera', Glassworks: 'la vidriería'}[h] || tr(h)) + ': +1 PV'],
+[/^(.+) delivers to the Council$/, '$1 entrega al Consejo'],
+[/^(.+) delivers (glass|marble|tools|sand)$/, (m, n, g) => n + ' entrega ' + tr(g)],
+[/^loads (\w+) for the (.+)$/, (m, g, h) => 'carga ' + tr(g) + ' para ' + ({Castle: 'el castillo', Quarry: 'la cantera', Glassworks: 'la vidriería'}[h] || tr(h))],
+[/^glass$/, 'vidrio'], [/^marble$/, 'mármol'], [/^tools$/, 'herramientas'], [/^sand$/, 'arena'],
+[/^Train (\d+)$/, 'Tren $1'],
+[/^Delivered (\d+)$/, 'Entregas $1'],
+[/^Cargo: (\w+)$/, (m, g) => 'Carga: ' + tr(g)],
+[/^(.+)'s wagon( with (\w+))?$/, (m, n, x, g) => 'Carreta de ' + n + (g ? ' con ' + tr(g) : '')],
+[/^upgraded their baggage train to level (\d)(: \+1 VP)?$/, (m, l, v) => 'mejoró su tren de carga al nivel ' + l + (v ? ': +1 PV' : '')],
+[/^rolled (\d+) and failed to drive off a barbarian$/, 'sacó $1 y no logró ahuyentar a un bárbaro'],
+[/^rolled (\d+) and drove off a barbarian$/, 'sacó $1 y ahuyentó a un bárbaro'],
+[/^rolled (\d+) and chased the pirates off$/, 'sacó $1 y ahuyentó a los piratas'],
+[/^rolled (\d+): the pirates hold$/, 'sacó $1: los piratas resisten'],
+[/^rolled (\d+) for fish: nothing bites$/, 'sacó $1 para pescar: nada pica'],
+[/^rolled (\d+): a fish haul appears$/, 'sacó $1: aparecen peces'],
+[/^advances on the (.+) mission \((\d+)\)$/, (m, x, n) => 'avanza en la misión ' + tr(x) + ' (' + n + ')'],
+[/^discovered (.+) and takes (\d+)$/, (m, t, n) => 'descubrió ' + tr(t) + ' y toma ' + n],
+[/^Land ho! (.+)$/, (m, t) => '¡Tierra a la vista! ' + tr(t)],
+[/^(.+) settles new land$/, '$1 coloniza tierras nuevas'],
+[/^lands crews on a pirate lair \((\d)\/3\)$/, 'desembarca tripulaciones en una guarida pirata ($1/3)'],
+[/^befriends a spice village: (.+)$/, (m, a) => 'se hace amigo de una aldea de especias: ' + ({'Swift Voyage (+1 movement)': 'Viaje veloz (+1 movimiento)', 'Pirate Bonus (chase on a 5)': 'Ventaja pirata (ahuyenta con un 5)', 'Pirate Bonus (chase on a 4)': 'Ventaja pirata (ahuyenta con un 4)', 'Fast Gold (sell a card for 1 gold)': 'Oro rápido (vende una carta por 1 de oro)'}[a] || a)],
+[/^is the hero of the lair\. The gold field \((\d+)\) is free to settle$/, 'es el héroe de la guarida. El campo de oro ($1) queda libre para colonizar'],
+[/^Harbors (\d+)$/, 'Puertos $1'],
+[/^Lairs (\d+)$/, 'Guaridas $1'],
+[/^Spice (\d+)$/, 'Especias $1'],
+[/^Pirate lair \((\d)\/3 crews\)$/, 'Guarida pirata ($1/3 tripulaciones)'],
+[/^Fish shoal: a (\d) on the fish roll$/, 'Banco de peces: un $1 en la pesca'],
+[/^Spice village: (\d+) sacks$/, 'Aldea de especias: $1 sacos'],
+[/^(\d+) sacks$/, '$1 sacos'],
+[/^(settler|crew|fish|spice)(\+(settler|crew|fish|spice))*$/, s => s.split('+').map(c => ({settler: 'colono', crew: 'tripul.', fish: 'peces', spice: 'especias'}[c])).join('+')],
+[/^(.+)'s ship( carrying (.+))?$/, (m, n, x, c) => 'Barco de ' + n + (c ? ' con ' + c.replace(/\bsettler\b/g, 'colono').replace(/\bcrew\b/g, 'tripulación').replace(/\bfish\b/g, 'peces').replace(/\bspice\b/g, 'especias').replace(/ and /g, ' y ') : '')],
+[/^(.+)'s pirate ship$/, 'Barco pirata de $1'],
+[/^(swift|pirate5|pirate4|fastgold)$/, (m, a) => ({swift: 'viaje veloz', pirate5: 'ventaja pirata 5', pirate4: 'ventaja pirata 4', fastgold: 'oro rápido'}[a])],
+// ---------- single words that show up inside longer strings (keep last) ----------
+[/\bGold field\b/g, 'Campo de oro'],
+[/\bSpice island\b/g, 'Isla de especias'],
+[/\bFish shoal\b/g, 'Banco de peces'],
+[/\bBrick\b/g, 'Arcilla'], [/\bLumber\b/g, 'Madera'], [/\bWool\b/g, 'Lana'], [/\bGrain\b/g, 'Trigo'], [/\bOre\b/g, 'Mineral'],
+[/\bPaper\b/g, 'Papel'], [/\bCloth\b/g, 'Tela'], [/\bCoin\b/g, 'Moneda'],
+[/\bHills\b/g, 'Colinas'], [/\bForest\b/g, 'Bosque'], [/\bPasture\b/g, 'Pasto'], [/\bFields\b/g, 'Campos'], [/\bMountains\b/g, 'Montañas'], [/\bDesert\b/g, 'Desierto'],
+[/\bLake\b/g, 'Lago'], [/\bSwamp\b/g, 'Pantano'], [/\bCastle\b/g, 'Castillo'], [/\bQuarry\b/g, 'Cantera'], [/\bGlassworks\b/g, 'Vidriería'],
+[/\bVP\b/g, 'PV'],
+// the AI players are named after their colours; the local player is "You"
+[/\b(Blue|Red|Orange|White|Green|Brown)\b/g, c => ({Blue: 'Azul', Red: 'Rojo', Orange: 'Naranja', White: 'Blanco', Green: 'Verde', Brown: 'Marrón'})[c]],
+[/\bYou\b/g, 'Tú'],
+];
+// ===== i18n-es END =====
+</script>
+<script>
+// ===== language: English or Spanish. Game state and network messages stay in English; only what people read changes. =====
+let LANG = (() => { try { const s = localStorage.getItem('catan.lang'); if (s === 'en' || s === 'es') return s; } catch { /* private mode */ } return /^es\b/i.test(navigator.language || '') ? 'es' : 'en'; })();
+const L = (en, es) => LANG === 'es' ? es : en; // new text gives both versions at the call site
+const store = {get: k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set: (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch { /* private mode */ } }}; // per-device settings
+// The game writes English everywhere. In Spanish a watcher swaps every text and label the page shows for its translation
+// (ES_EXACT: whole strings, ES_RULES: patterns for text built on the fly), and remembers the English to swap it back.
+const I18N_ATTRS = ['title', 'placeholder', 'aria-label', 'data-hint'], I18N_SKIP = 'script,style,[data-notr],#chatLog,#gChatLog';
+const i18nMemo = new Map(), i18nOrig = new WeakMap(); // english -> spanish; node -> {src, out} (attributes: element -> {attr: {src, out}})
+function tr(s) {
+  if (LANG !== 'es' || !s || !/[A-Za-z]/.test(s)) return s;
+  let out = i18nMemo.get(s);
+  if (out !== undefined) return out;
+  const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s), core = m[2];
+  let t = (window.ES_EXACT || {})[core];
+  if (t === undefined) { t = core; for (const [re, rep] of window.ES_RULES || []) t = t.replace(re, rep); }
+  out = m[1] + t + m[3];
+  if (i18nMemo.size > 6000) i18nMemo.clear();
+  i18nMemo.set(s, out); return out;
+}
+function i18nNode(n) {
+  if (n.nodeType === 3) {
+    if (!n.parentElement || n.parentElement.closest(I18N_SKIP)) return;
+    const cur = n.nodeValue, o = i18nOrig.get(n);
+    if (o && cur === o.out) return; // our own translation
+    const out = tr(cur); i18nOrig.set(n, {src: cur, out});
+    if (out !== cur) n.nodeValue = out;
+  } else if (n.nodeType === 1) {
+    if (n.closest(I18N_SKIP)) return;
+    for (const a of I18N_ATTRS) i18nAttr(n, a);
+    const w = document.createTreeWalker(n, 5); // elements and text
+    for (let c = w.nextNode(); c; c = w.nextNode()) {
+      if (c.nodeType === 1) { if (c.matches(I18N_SKIP)) continue; for (const a of I18N_ATTRS) if (c.hasAttribute(a)) i18nAttr(c, a); }
+      else i18nNode(c);
+    }
+  }
+}
+function i18nAttr(el, a) {
+  const cur = el.getAttribute(a); if (cur == null) return;
+  let o = i18nOrig.get(el); if (!o) i18nOrig.set(el, o = {});
+  if (o[a] && cur === o[a].out) return;
+  const out = tr(cur); o[a] = {src: cur, out};
+  if (out !== cur) el.setAttribute(a, out);
+}
+function i18nAll() { // after a language switch: start again from the remembered English
+  const w = document.createTreeWalker(document.body, 5);
+  for (let c = w.nextNode(); c; c = w.nextNode()) {
+    const o = i18nOrig.get(c); if (!o) continue;
+    if (c.nodeType === 3) { if (c.nodeValue === o.out) c.nodeValue = o.src; i18nOrig.delete(c); }
+    else for (const a in o) if (c.getAttribute(a) === o[a].out) c.setAttribute(a, o[a].src);
+    if (c.nodeType === 1) i18nOrig.delete(c);
+  }
+  i18nNode(document.body);
+}
+new MutationObserver(recs => {
+  for (const r of recs) {
+    if (r.type === 'characterData') i18nNode(r.target);
+    else if (r.type === 'attributes') { if (!r.target.closest(I18N_SKIP)) i18nAttr(r.target, r.attributeName); }
+    else r.addedNodes.forEach(i18nNode);
+  }
+}).observe(document.body, {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: I18N_ATTRS});
+document.documentElement.lang = LANG;
+i18nNode(document.body);
+function setLang(l) {
+  if (l !== 'en' && l !== 'es') return;
+  LANG = l; store.set('catan.lang', l); document.documentElement.lang = l; i18nMemo.clear();
+  langUI(); i18nAll();
+}
+function langUI() { document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-checked', b.dataset.lang === LANG)); document.getElementById('langSel').value = LANG; }
+document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+document.getElementById('langSel').addEventListener('change', e => setLang(e.target.value));
+langUI();
 // ===== constants =====
 const RES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
 let KINDS = RES; // card kinds in play: resources, plus commodities in Cities & Knights
@@ -734,12 +2121,69 @@ const scen = () => SC[G?.scen] || {};
 const PDECK = {}; // card key -> deck
 Object.entries(PROG).forEach(([d, cards]) => Object.keys(cards).forEach(t => { PDECK[t] = d; }));
 const progName = t => PROG[PDECK[t]][t][0], progText = t => PROG[PDECK[t]][t][2];
-const TNAME = {brick: 'Hills', lumber: 'Forest', wool: 'Pasture', grain: 'Fields', ore: 'Mountains', desert: 'Desert', gold: 'Gold field', sea: 'Sea', lake: 'Lake', swamp: 'Swamp', oasis: 'Oasis', castle: 'Castle', tcastle: 'Castle', tquarry: 'Quarry', tglass: 'Glassworks', spice: 'Spice island', shoal: 'Fish shoal'};
+const TNAME = {brick: 'Hills', lumber: 'Forest', wool: 'Pasture', grain: 'Fields', ore: 'Mountains', desert: 'Desert', gold: 'Gold field', sea: 'Sea', lake: 'Lake', swamp: 'Swamp', oasis: 'Oasis', castle: 'Castle', tcastle: 'Castle', tquarry: 'Quarry', tglass: 'Glassworks', spice: 'Spice island', shoal: 'Fish shoal', lair: 'Pirate lair'};
 const PIPS = {2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1};
 const COST = {road: {brick: 1, lumber: 1}, ship: {lumber: 1, wool: 1}, settlement: {brick: 1, lumber: 1, wool: 1, grain: 1}, city: {grain: 2, ore: 3}, dev: {wool: 1, grain: 1, ore: 1},
   knight: {wool: 1, ore: 1}, activate: {grain: 1}, wall: {brick: 2}, medicine: {ore: 2, grain: 1}};
 const DEV_NAME = {knight: 'Knight', vp: 'Victory Point', road: 'Road Building', plenty: 'Year of Plenty', monopoly: 'Monopoly', tknight: 'Knight', swift: 'Swift Journey'};
 const DEV_TEXT = {tknight: 'Move a barbarian; on a road, rob its owner', swift: 'Move your wagon a second time', knight: 'Move the robber and steal a card', vp: 'Worth 1 victory point', road: 'Build 2 roads for free', plenty: 'Take any 2 resources', monopoly: 'Take every card of one type'};
+const DEV_ICON = {tknight: 'knight', swift: 'b-move'}; // cards that borrow another card's art
+// What a played action card does, told in full on everyone's screen (name and text in English and Spanish)
+const CARD_INFO = {
+  knight: ['Caballero', 'Move the robber to any other land tile. That tile produces nothing while the robber sits there. Then steal 1 random card from a player who has a settlement or city on it. The card stays in front of you: the first player with 3 knights takes the Largest Army (+2 victory points).',
+    'Mueve al ladrón a cualquier otra casilla de tierra. Esa casilla no produce nada mientras el ladrón esté ahí. Luego roba 1 carta al azar a un jugador con un poblado o ciudad en ella. La carta queda frente a ti: el primero en reunir 3 caballeros gana el Gran Ejército (+2 puntos de victoria).'],
+  road: ['Construcción de caminos', 'Build 2 roads for free, following the normal building rules. In Seafarers games either piece can be a ship instead. Free roads still count toward the Longest Road.',
+    'Construye 2 caminos gratis, siguiendo las reglas normales de construcción. En partidas de Navegantes cualquiera de ellos puede ser un barco. Los caminos gratis también cuentan para el Camino más largo.'],
+  plenty: ['Año de abundancia', 'Take any 2 resource cards from the bank: two of the same kind or two different ones. You can use them right away to build or trade this turn.',
+    'Toma 2 cartas de recurso cualesquiera del banco: dos iguales o dos distintas. Puedes usarlas en seguida para construir o comerciar este turno.'],
+  monopoly: ['Monopolio', 'Name one resource. Every other player must give you every card of that resource they hold in their hand.',
+    'Nombra un recurso. Todos los demás jugadores deben darte todas las cartas de ese recurso que tengan en la mano.'],
+  vp: ['Punto de victoria', 'Worth 1 victory point. It stays hidden in your hand and counts automatically.', 'Vale 1 punto de victoria. Se queda oculta en tu mano y cuenta automáticamente.'],
+  tknight: ['Caballero', 'Move one barbarian to another road space. If it lands on a road, you rob that road’s owner of 1 random card.',
+    'Mueve un bárbaro a otro espacio de camino. Si cae sobre un camino, le robas 1 carta al azar a su dueño.'],
+  swift: ['Viaje veloz', 'Your wagon may move a second time this turn, so you can reach the castle, quarry or glassworks sooner.',
+    'Tu carreta puede moverse una segunda vez este turno, para llegar antes al castillo, la cantera o la vidriería.'],
+  alchemist: ['Alquimista', 'Play it before rolling. Instead of rolling, you choose the result of the yellow and the red die. The event die is still rolled.',
+    'Se juega antes de tirar. En vez de tirar, eliges el resultado del dado amarillo y del rojo. El dado de eventos se tira igual.'],
+  crane: ['Grúa', 'This turn, your next city improvement costs 1 commodity less than usual.', 'Este turno, tu próxima mejora de ciudad cuesta 1 mercancía menos de lo normal.'],
+  engineer: ['Ingeniero', 'Build a city wall for free under one of your cities. Each wall lets you hold 2 more cards when a 7 is rolled.',
+    'Construye gratis una muralla bajo una de tus ciudades. Cada muralla te deja guardar 2 cartas más cuando sale un 7.'],
+  inventor: ['Inventor', 'Swap any two number discs on the board. The 2, 6, 8 and 12 discs cannot be moved.', 'Intercambia dos fichas de número del tablero. Las fichas 2, 6, 8 y 12 no se pueden mover.'],
+  irrigation: ['Irrigación', 'Take 2 grain from the bank for every fields tile next to at least one of your settlements or cities.',
+    'Toma 2 de trigo del banco por cada casilla de campos junto a al menos uno de tus poblados o ciudades.'],
+  medicine: ['Medicina', 'Upgrade one of your settlements to a city for only 2 ore and 1 grain.', 'Mejora uno de tus poblados a ciudad pagando solo 2 de mineral y 1 de trigo.'],
+  mining: ['Minería', 'Take 2 ore from the bank for every mountains tile next to at least one of your settlements or cities.',
+    'Toma 2 de mineral del banco por cada casilla de montañas junto a al menos uno de tus poblados o ciudades.'],
+  printer: ['Imprenta', 'Worth 1 victory point, shown face up at once.', 'Vale 1 punto de victoria y se muestra boca arriba de inmediato.'],
+  road2: ['Construcción de caminos', 'Build 2 roads for free (ships in Seafarers games), following the normal building rules.',
+    'Construye 2 caminos gratis (barcos en partidas de Navegantes), siguiendo las reglas normales de construcción.'],
+  smith: ['Herrero', 'Promote up to 2 of your knights one level for free (basic to strong, strong to mighty if you have the Fortress).',
+    'Asciende gratis hasta 2 de tus caballeros un nivel (de básico a fuerte, y de fuerte a poderoso si tienes la Fortaleza).'],
+  harbor: ['Puerto comercial', 'Offer each opponent one resource from your hand. Each of them must give you one commodity in return.',
+    'Ofrece a cada rival un recurso de tu mano. Cada uno debe darte una mercancía a cambio.'],
+  master: ['Maestro mercader', 'Choose a player with more victory points than you. Look at their hand and take any 2 cards from it.',
+    'Elige a un jugador con más puntos de victoria que tú. Mira su mano y toma 2 cartas cualesquiera de ella.'],
+  merchant: ['Mercader', 'Place the merchant on a land tile next to your buildings. While it stays there you trade that tile’s resource 2:1 with the bank, and the merchant is worth 1 victory point.',
+    'Coloca al mercader en una casilla junto a tus construcciones. Mientras esté ahí comercias ese recurso 2:1 con el banco, y el mercader vale 1 punto de victoria.'],
+  fleet: ['Flota mercante', 'Choose one kind of card. For the rest of this turn you trade it with the bank at 2:1.', 'Elige un tipo de carta. Durante el resto del turno lo cambias con el banco a 2:1.'],
+  resmono: ['Monopolio de recursos', 'Name a resource. Every opponent must give you up to 2 cards of it.', 'Nombra un recurso. Cada rival debe darte hasta 2 cartas de ese recurso.'],
+  trademono: ['Monopolio comercial', 'Name a commodity (paper, cloth or coin). Every opponent must give you 1 of it.', 'Nombra una mercancía (papel, tela o moneda). Cada rival debe darte 1 de ella.'],
+  bishop: ['Obispo', 'Move the robber to another tile and steal 1 random card from every player with a building next to it.',
+    'Mueve al ladrón a otra casilla y roba 1 carta al azar a cada jugador con una construcción junto a ella.'],
+  constitution: ['Constitución', 'Worth 1 victory point, shown face up at once.', 'Vale 1 punto de victoria y se muestra boca arriba de inmediato.'],
+  deserter: ['Desertor', 'Choose an opponent: they remove one of their knights. You may then place a knight of the same strength for free.',
+    'Elige a un rival: retira uno de sus caballeros. Luego puedes colocar gratis un caballero de la misma fuerza.'],
+  diplomat: ['Diplomático', 'Remove an open road (one with a free end). If it was one of yours, you may place it again somewhere else.',
+    'Retira un camino abierto (con un extremo libre). Si era tuyo, puedes volver a colocarlo en otro lugar.'],
+  intrigue: ['Intriga', 'Push away an opponent’s knight that stands on your road network. Its owner must move it elsewhere or lose it.',
+    'Expulsa a un caballero rival que esté sobre tu red de caminos. Su dueño debe moverlo a otro lugar o lo pierde.'],
+  saboteur: ['Saboteador', 'Every player with at least as many victory points as you must discard half of their cards (rounded down).',
+    'Cada jugador con al menos tantos puntos de victoria como tú debe descartar la mitad de sus cartas (redondeando hacia abajo).'],
+  spy: ['Espía', 'Look at an opponent’s progress cards and take one of them into your hand.', 'Mira las cartas de progreso de un rival y quédate con una de ellas.'],
+  warlord: ['Señor de la guerra', 'Activate all of your knights for free.', 'Activa gratis a todos tus caballeros.'],
+  wedding: ['Boda', 'Every player with more victory points than you must give you 2 cards of their choice as a gift.',
+    'Cada jugador con más puntos de victoria que tú debe regalarte 2 cartas de su elección.'],
+};
 const COLORS = [{name: 'Blue', color: '#3d82e0', mark: 'U', ink: '#fff'}, {name: 'Red', color: '#dd4a3f', mark: 'R', ink: '#fff'}, {name: 'Orange', color: '#f0902a', mark: 'O', ink: '#2a1600'}, {name: 'White', color: '#efe9dc', mark: 'W', ink: '#1d1d1d'}, {name: 'Green', color: '#3fae5c', mark: 'G', ink: '#fff'}, {name: 'Brown', color: '#9a6a44', mark: 'B', ink: '#fff'}];
 const PDEF = []; // seat 0 is you in the colour you picked; the rivals take the remaining colours in order
 function setPalette(ci = 0) { PDEF.length = 0; PDEF.push({...COLORS[ci], name: 'You', mark: 'Y'}, ...COLORS.filter((_, k) => k !== ci)); }
@@ -846,18 +2290,18 @@ let G, FAST = false, SPEED = 1, GAME_ID = 0;
 const SEL = new Set(); // keys of hand cards the player has lifted
 
 function sleep(ms) {
-  if (FAST) return Promise.resolve();
+  if (FAST || NET && document.hidden) return Promise.resolve(); // online, a hidden page keeps up with the live game instead of animating for nobody
   const id = GAME_ID;
   return new Promise((ok, no) => { // the AI waits while the menu is open
     const tick = () => id !== GAME_ID ? no(ABORT) : MENU_OPEN ? setTimeout(tick, 250) : ok();
-    setTimeout(tick, ms * SPEED);
+    setTimeout(tick, ms * SPEED * (NET ? netHurry() : 1)); // online: moves this browser missed fast-forward
   });
 }
 
 // cfg: {n: 3-6 players, diff: [AI difficulty per seat], trade: 0-4 AI trade willingness, sea: Seafarers on/off, tutorial}
 let CFG = {color: 0, n: 4, diff: ['normal', 'normal', 'normal', 'normal', 'normal'], trade: 2, sea: false, ck: false, scen: null, friendly: false, events: false, harbormaster: false, tutorial: null};
 function newGame(cfg, allAI) {
-  GAME_ID++; closeModal(); seedRNG(cfg.seed ?? Math.floor(Math.random() * 4294967296));
+  GAME_ID++; closeModal(); document.querySelectorAll('.reveal').forEach(e => e.remove()); seedRNG(cfg.seed ?? Math.floor(Math.random() * 4294967296));
   HUMAN = cfg.me ?? 0;
   if (cfg.seats) { PDEF.length = 0; cfg.seats.forEach((st, i) => PDEF.push({...COLORS[st.color], name: st.name, mark: (st.name.trim()[0] || '?').toUpperCase(), kind: st.kind})); } else setPalette(cfg.color || 0);
   const n = cfg.n, big = n > 4, sea = cfg.sea, ck = !!cfg.ck, S_ = SC[cfg.scen] || {};
@@ -940,7 +2384,7 @@ const bankPt = () => center($('#bank'));
 const deckPt = () => center($('#deck'));
 const hexPt = hi => svgPt(HEX[hi].x, HEX[hi].y);
 const mini = r => r ? `<div class="mcard ${r}"><svg><use href="#i-${r}"/></svg></div>` : '<div class="mcard back"></div>';
-const miniDev = t => `<div class="mcard dev">${t ? `<svg><use href="#i-${t}"/></svg>` : ''}</div>`;
+const miniDev = t => `<div class="mcard dev">${t ? `<svg><use href="#i-${DEV_ICON[t] || t}"/></svg>` : ''}</div>`;
 function fly(from, to, html, delay = 0) {
   const a = A();
   if (!a) return;
@@ -1133,11 +2577,18 @@ async function takeGold(i, k, title = 'Gold field', why = 'Your gold field paid 
 }
 async function produce(n) {
   const gain = G.players.map(emptyRes), gold = G.players.map(() => 0), trips = [];
+  const why = []; // the local player's tiles that paid nothing this roll, so they see the reason instead of a silent miss
   HEX.forEach((h, hi) => {
     const t = G.hex[hi];
     if (t.num !== n && t.alt !== n) return; // Rivers: one tile answers to both 2 and 12
-    if (hi === G.robber) { if (h.v.some(v => G.bld[v])) log(`The robber blocked ${TNAME[t.res]} ${n}`); return; }
-    if (scen().blocked?.(hi) || !RES.includes(t.res) && t.res !== 'gold') return; // only resource tiles produce cards
+    const mine = h.v.some(v => G.bld[v]?.p === HUMAN);
+    if (hi === G.robber) {
+      if (h.v.some(v => G.bld[v])) log(`The robber blocked ${TNAME[t.res]} ${n}`);
+      if (mine) why.push(L(`the robber is on your ${TNAME[t.res]} ${n}`, `el ladrón está en tu ${TNAME[t.res]} ${n}`));
+      return;
+    }
+    if (scen().blocked?.(hi)) { if (mine) why.push(L(`your ${TNAME[t.res]} ${n} is held by barbarians`, `tu ${TNAME[t.res]} ${n} está en manos de los bárbaros`)); return; }
+    if (!RES.includes(t.res) && t.res !== 'gold') return; // only resource tiles produce cards
     h.v.forEach(v => {
       const b = G.bld[v];
       if (!b) return;
@@ -1154,10 +2605,17 @@ async function produce(n) {
     const takers = gain.map((g, i) => g[r] ? i : -1).filter(i => i >= 0), need = takers.reduce((t, i) => t + gain[i][r], 0);
     if (!need) return;
     if (need > G.bank[r] && takers.length > 1) { // bank shortage: nobody gets that resource
-      log(`The bank ran short of ${RNAME[r]}, so nobody collects it`); takers.forEach(i => { gain[i][r] = 0; }); return;
+      log(`The bank ran short of ${RNAME[r]}, so nobody collects it`);
+      if (gain[HUMAN]?.[r]) why.push(L(`the bank ran short of ${RNAME[r]}, so nobody collects it`, `el banco no tiene suficiente ${RNAME[r]}, así que nadie lo cobra`));
+      takers.forEach(i => { gain[i][r] = 0; }); return;
     }
-    takers.forEach(i => { gain[i][r] = take(i, r, gain[i][r]); });
+    takers.forEach(i => {
+      const owed = gain[i][r];
+      gain[i][r] = take(i, r, owed);
+      if (i === HUMAN && gain[i][r] < owed) why.push(L(`the bank only had ${gain[i][r]} ${RNAME[r]} left`, `al banco solo le quedaba${gain[i][r] === 1 ? '' : 'n'} ${gain[i][r]} de ${RNAME[r]}`));
+    });
   });
+  if (why.length && G.players[HUMAN] && !G.players[HUMAN].ai) toast(L('No cards from ', 'Sin cartas: ') + why.join(' · '));
   let k = 0;
   trips.forEach(tr => { if (gain[tr.p][tr.r]) for (let m = 0; m < tr.n; m++) fly(hexPt(tr.hi), seatPt(tr.p), mini(tr.r), 110 * k++); });
   const lines = gain.map((g, i) => sum(g) ? `${pn(i)} +${resList(g)}` : null).filter(Boolean);
@@ -1174,14 +2632,14 @@ async function roll() {
   G.alch = null;
   G.dice = [a, b]; G.ev = ev; G.rollN++; G.hotOn = false;
   log(`${pn(G.cur)} rolled <b>${n}</b>${ev ? ` · event: ${ev === 'ship' ? 'barbarian ship' : `${TRACK_NAME[ev]} gate`}` : ''}`); render();
-  await sleep(1000);
+  await sleep(1300); // let the dice land before anything is paid
   if (ev) { await resolveEvent(ev, b); if (G.phase === 'over') return; }
   if (card?.ev && card.ev !== 'robber') { banner(EVENT_NAME[card.ev], 'sm'); log(`Event card: <b>${EVENT_NAME[card.ev]}</b>`); await resolveEventCard(card.ev); render(); }
   G.hotOn = true;
-  if (n === 7) { banner(G.barbOn ? 'Seven! The robber strikes' : 'Seven! Big hands discard', 'red'); await sleep(500); await seven(); } else await produce(n);
+  if (n === 7) { banner(G.barbOn ? 'Seven! The robber strikes' : 'Seven! Big hands discard', 'red'); await sleep(900); await seven(); } else await produce(n);
   G.epidemic = false;
   render();
-  await sleep(650);
+  await sleep(1100); // the cards are still flying to their owners
   G.phase = 'main';
 }
 async function seven() {
@@ -1193,6 +2651,7 @@ async function seven() {
     flyRes(seatPt(i), bankPt(), d);
     KINDS.forEach(r => { p.res[r] -= d[r]; G.bank[r] += d[r]; });
     log(`${pn(i)} discarded ${resList(d)}`); render();
+    if (p.ai) await sleep(500);
   }
   if (scen().seven) await scen().seven(G.cur);
   else if (G.barbOn) await moveRobber(G.cur); // C&K: the robber stays put until the first barbarian attack
@@ -1202,6 +2661,7 @@ async function moveRobber(i) {
   const p = G.players[i], sea = G.cfg.sea;
   const opts = robberOpts(i);
   if (!opts.length) { G.robber = G.hex.findIndex(t => t.res === 'desert'); if (G.robber < 0) G.robber = null; log('The friendly robber has nowhere to go'); render(); return; }
+  if (p.ai) await sleep(700);
   const h = p.ai ? aiRobberHex(i) : await pick('hex', opts, sea ? 'Move the robber (click land) or the pirate (click sea)' : 'Move the robber: click any other tile', false);
   const pirate = G.hex[h].res === 'sea';
   if (pirate) G.pirate = h; else G.robber = h;
@@ -1211,7 +2671,7 @@ async function moveRobber(i) {
   const victims = [...new Set(owners.filter(j => j != null && j !== i && sum(G.players[j].res) > 0 && !(G.cfg.friendly && vp(j, false) <= 2)))];
   if (!victims.length) return;
   if (p.ai) {
-    await sleep(500);
+    await sleep(900);
     return steal(i, victims.length === 1 ? victims[0] : best(victims, j => vp(j, false) * 10 + sum(G.players[j].res)));
   }
   const {j, r} = await askSteal(victims);
@@ -1246,7 +2706,7 @@ async function resolveEvent(ev, red) {
     log(`The barbarian ship sails closer (${G.barb}/7)`);
     banner(G.barb >= 7 ? 'The barbarians attack!' : `Barbarians ${G.barb}/7`, G.barb >= 7 ? 'red' : 'sm');
     render();
-    if (G.barb >= 7) { await sleep(900); await barbarianAttack(); }
+    if (G.barb >= 7) { await sleep(1300); await barbarianAttack(); }
     return;
   }
   // a city gate: everyone whose improvement in that colour covers the red die draws a progress card, in turn order
@@ -1435,17 +2895,62 @@ async function freeRoads(i, label) { // Road Building (dev or progress card): 2 
     if (!opts.length) break;
     const e = p.ai ? aiRoadPick(i) : await pick('edge', opts, `${label}: place free ${G.cfg.sea ? 'road or ship' : 'road'} ${n} of 2`, false);
     if (p.roads && canRoad(e, i)) buildRoad(i, e, true); else buildShip(i, e, true);
-    render(); await sleep(300);
+    render(); await sleep(p.ai ? 750 : 300);
   }
 }
 function refreshToken(h) { const g = $(`#tile${h} .tokwrap`); if (g) g.outerHTML = tokenSVG(G.hex[h].num); }
+// ===== action card reveal: everyone sees the card, its name and what it does, until the player who played it taps =====
+function revealHTML(i, kind, t, mode) {
+  const p = G.players[i], info = CARD_INFO[t] || [], deck = kind === 'prog' ? PDECK[t] : '';
+  const name = L(kind === 'prog' ? progName(t) : DEV_NAME[t], info[0] || ''), text = L(info[1] || (kind === 'prog' ? progText(t) : DEV_TEXT[t]), info[2] || '');
+  const icon = kind === 'prog' ? `d-${deck}` : DEV_ICON[t] || t, type = kind === 'prog' ? L(`${TRACK_NAME[deck]} progress card`, `Carta de progreso de ${{trade: 'comercio', politics: 'política', science: 'ciencia'}[deck]}`) : L('Development card', 'Carta de desarrollo');
+  const esc = x => String(x).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c]);
+  const foot = mode === 'me' ? L('Tap anywhere to continue', 'Toca la pantalla para continuar') : mode === 'ai' ? L('The AI goes on in a moment…', 'La IA sigue en un momento…') : L(`Waiting for ${p.name} to continue…`, `Esperando a que ${p.name} continúe…`);
+  return `<div class="rv-rays"></div><div class="rv-box">
+    <div class="rv-who">${avatarHTML(i)}<span>${p.name === 'You' ? L('You play a card', 'Juegas una carta') : `<b>${esc(p.name)}</b> ${L('plays a card', 'juega una carta')}`}</span></div>
+    <div class="rv-flip"><div class="rv-card ${kind} ${deck} ${t}"><div class="rv-art"><svg><use href="#i-${icon}"/></svg></div><div class="rv-ribbon">${esc(name)}</div></div></div>
+    <h2 class="rv-name">${esc(name)}</h2><div class="rv-type">${type}</div><p class="rv-text">${esc(text)}</p>
+    <div class="rv-foot${mode === 'me' ? ' tap' : ''}">${esc(foot)}</div>${mode === 'ai' ? '<div class="rv-timer"><i></i></div>' : ''}</div>`;
+}
+function showReveal(i, kind, t, mode) {
+  document.querySelectorAll('.reveal').forEach(e => e.remove());
+  const el = document.createElement('div');
+  el.className = `reveal ${mode}`; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', mode === 'me'); el.dataset.notr = '';
+  el.style.setProperty('--pc', G.players[i].color); el.style.setProperty('--ms', `${4200 * SPEED}ms`);
+  el.innerHTML = revealHTML(i, kind, t, mode);
+  const from = seatPt(i), r = {x: innerWidth / 2, y: innerHeight / 2}; // the card flies in from the player's seat
+  el.style.setProperty('--fx', `${Math.round(from.x - r.x)}px`); el.style.setProperty('--fy', `${Math.round(from.y - r.y)}px`);
+  document.body.appendChild(el);
+  if (mode === 'me') el.tabIndex = -1, el.focus({preventScroll: true});
+  return el;
+}
+function hideReveal(el) {
+  if (!el?.isConnected) return;
+  el.classList.add('out'); el.onclick = null; el.onkeydown = null;
+  setTimeout(() => el.remove(), 420);
+}
+async function revealCard(i, kind, t) {
+  const p = G.players[i];
+  if (p.ai) { // everyone runs the AI the same way, so a timed look is enough; a tap here only skips the wait on this screen
+    if (FAST || !A()) return;
+    const el = showReveal(i, kind, t, 'ai'), s = sleep(4200); s.catch(() => {});
+    try { await Promise.race([s, new Promise(ok => { el.onclick = ok; })]); } finally { hideReveal(el); }
+    return;
+  }
+  let el = FAST ? null : showReveal(i, kind, t, i === HUMAN ? 'me' : 'wait');
+  const ui = () => new Promise(ok => {
+    if (!el?.isConnected) el = showReveal(i, kind, t, 'me');
+    const done = () => ok(1);
+    el.onclick = done; el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); done(); } };
+  });
+  try { await by(i, () => decide(ui, () => 1)); } finally { hideReveal(el); }
+}
 async function playProgress(i, c) {
   const p = G.players[i], t = c.t, ai = p.ai, where = (kind, ids, msg, cancel = false) => pick(kind, ids, msg, cancel);
   p.prog.splice(p.prog.indexOf(c), 1); G.pdeck[PDECK[t]].push(t); // played cards go under their deck
-  fly(seatPt(i), svgPt(0, 0), miniProg(PDECK[t]));
-  banner(`${p.name}: ${progName(t)}`, 'sm');
   log(`${pn(i)} played <b>${progName(t)}</b>`); render();
-  await sleep(450);
+  await revealCard(i, 'prog', t);
+  await sleep(300);
   switch (t) {
     case 'alchemist': G.alch = ai ? aiAlchemy(i) : await askDice(); log(`${pn(i)} set the dice to ${G.alch[0]} and a red ${G.alch[1]}`); break;
     case 'crane': G.crane = i; break;
@@ -1569,10 +3074,9 @@ async function playDev(i, t) {
   const p = G.players[i], k = p.dev.findIndex(d => d.t === t && d.turn < G.turn);
   if (k < 0 || G.devPlayed) return;
   p.dev.splice(k, 1); G.devPlayed = true; G.spent++;
-  fly(seatPt(i), svgPt(0, 0), miniDev(t));
-  banner(`${p.name}: ${DEV_NAME[t]}`, 'sm');
   log(`${pn(i)} played <b>${DEV_NAME[t]}</b>`); render();
-  await sleep(500);
+  await revealCard(i, 'dev', t);
+  await sleep(300);
   if (scen().dev?.[t]) await scen().dev[t](i);
   else if (t === 'knight') { p.knights++; updateArmy(i); await moveRobber(i); }
   else if (t === 'road') await freeRoads(i, 'Road Building');
@@ -1985,6 +3489,7 @@ async function moveKnightsBA(i) {
     if (aiKnightTarget(i, to[0]) <= aiKnightTarget(i, e) + 0.2 && !castleEdges().includes(e)) continue;
     if (to[1] > 3) pay(i, {grain: 1});
     delete G.bk[e]; G.bk[to[0]] = i;
+    render(); await sleep(700);
   }
 }
 SC.barb = {
@@ -2019,8 +3524,8 @@ SC.barb = {
         for (const e of Object.keys(G.bk).map(Number).filter(e => G.bk[e] === i)) {
           const far = G.players[i].res.grain ? 5 : 3, opts = knightMovesBA(e, far);
           if (!opts.length) continue;
-          const pending = pick('edge', opts.map(o => o[0]), `Move this knight (glowing paths${far > 3 ? '; 4-5 steps cost a grain' : ''}), or Esc to leave it`); G.pick.what = 'bmove';
-          G.pick.from = e; render();
+          const pending = pick('edge', opts.map(o => o[0]), `Move this knight (glowing paths${far > 3 ? '; 4-5 steps cost a grain' : ''}), or Esc to leave it`);
+          if (G.pick) { G.pick.what = 'bmove'; G.pick.from = e; } render(); // only the deciding player's browser shows the pick
           const to = await pending;
           if (to === null) continue;
           if (opts.find(o => o[0] === to)[1] > 3) pay(i, {grain: 1});
@@ -2097,13 +3602,14 @@ async function moveWagon(i) {
     v = best(dests, x => -d(x) - paths[x][1] * 3 - (paths[x][0] > base ? 20 : 0));
     if (d(v) >= d(p.wagon)) return;
   } else {
-    const pending = pick('vert', dests, `Move your wagon${p.cargo ? ` (carrying ${GOOD_NAME[p.cargo]} to the ${TNAME[target]})` : ' to any trade hex'}. ${base} MP${boost ? ', +2 more for a grain' : ''} · Esc cancels`); G.pick.what = 'wagon'; render();
+    const pending = pick('vert', dests, `Move your wagon${p.cargo ? ` (carrying ${GOOD_NAME[p.cargo]} to the ${TNAME[target]})` : ' to any trade hex'}. ${base} MP${boost ? ', +2 more for a grain' : ''} · Esc cancels`); if (G.pick) G.pick.what = 'wagon'; render(); // only the deciding player's browser shows the pick
     v = await pending;
     if (v === null) return;
   }
   if (paths[v][0] > base) { pay(i, {grain: 1}); G.boosted = true; }
   payTolls(i, paths, v); p.wagon = v; G.wagonMoves++;
   arrive(i); render();
+  if (p.ai) await sleep(700);
 }
 async function moveTBarb(i, why) { // a 7 or a Knight: move a barbarian; landing on a road robs its owner
   const p = G.players[i], opts = EDGE.map((_, e) => e).filter(e => EDGE[e].land && !G.tbarb.includes(e));
@@ -2262,7 +3768,7 @@ async function epSetup() { // free set-up: harbor settlements, then settlements 
   for (let n = 0; n < 2 * N; n++) {
     const i = (s + (n < N ? n : 2 * N - 1 - n)) % N, p = G.players[i], harbor = n < N;
     G.cur = i; render();
-    if (p.ai) await sleep(500);
+    if (p.ai) await sleep(900);
     const opts = settleSpots(i, true).filter(v => VERT[v].island === 0 && (!harbor || VERT[v].hexes.some(h => !HEX[h].land)));
     const v = p.ai ? best(opts, v => vScore(v, i) + RNG() * NOISE[diffOf(i)] + (harbor ? VERT[v].hexes.filter(h => !HEX[h].land).length : 0)) : await pick('vert', opts, harbor ? 'Place your harbor settlement on a coastal corner' : 'Place your settlement', false);
     G.bld[v] = {p: i, t: 1}; if (harbor) { G.bld[v].h = true; p.hs--; G.basin[v] = []; } else p.settlements--;
@@ -2272,7 +3778,7 @@ async function epSetup() { // free set-up: harbor settlements, then settlements 
   for (let n = 0; n < N; n++) {
     const i = (s + N - 1 + n) % N, p = G.players[i], home = G.bld.findIndex(b => b?.p === i && !b.h);
     G.cur = i; render();
-    if (p.ai) await sleep(400);
+    if (p.ai) await sleep(700);
     const re = roadSpots(i, home), e = p.ai ? aiSetupRoad(i, home) : await pick('edge', re, 'Place a road next to your settlement', false);
     buildRoad(i, e, true);
     const se = shipBuildSpots(i);
@@ -2487,7 +3993,7 @@ async function epAiMove(i) {
     const to = best(opts, e => -far[e] * 10 - reach[e].d - (reach[e].tribute ? 5 : 0));
     if (far[to] >= far[s.e]) continue;
     await sail(i, s, to, reach[to]);
-    await sleep(300);
+    await sleep(700);
   }
 }
 const EP_BTN = [
@@ -2589,7 +4095,7 @@ async function setup() {
   for (let n = 0; n < 2 * N; n++) { // snake order: 1-2-...-N-N-...-2-1
     const i = (s + (n < N ? n : 2 * N - 1 - n)) % N, p = G.players[i], second = n >= N;
     G.cur = i; render();
-    if (p.ai) await sleep(550);
+    if (p.ai) await sleep(900);
     const v = p.ai ? aiSetupVertex(i) : await pick('vert', startSpots(i), `Place your ${second ? 'second' : 'first'} settlement on a glowing corner`, false);
     buildSettlement(i, v, true);
     if ((G.ck || scen().city2) && second) { G.bld[v].t = 2; p.settlements++; p.cities--; log(`${pn(i)} raised it straight to a city`); }
@@ -2599,7 +4105,7 @@ async function setup() {
       log(`${pn(i)} collected starting resources ${resList(got) || '(none)'}`);
     }
     render();
-    if (p.ai) await sleep(350);
+    if (p.ai) await sleep(700);
     const opts = [...roadSpots(i, v), ...(G.cfg.sea ? shipSpots(i, v).filter(e => !EDGE[e].land) : [])];
     const e = p.ai ? aiSetupRoad(i, v) : await pick('edge', opts, G.cfg.sea ? 'Now place a road, or a ship on open water, touching that settlement' : 'Now place a road touching that settlement', false);
     if (EDGE[e].land) buildRoad(i, e, true); else buildShip(i, e, true);
@@ -3039,18 +4545,18 @@ async function aiMaybeDev(i) {
   return true;
 }
 async function aiTurn(i, paired) {
-  render(); await sleep(600);
+  render(); await sleep(1000);
   if (!paired && G.phase === 'roll') {
-    if (wantsKnight(i)) { await playDev(i, 'knight'); if (checkWin()) return; render(); await sleep(300); }
+    if (wantsKnight(i)) { await playDev(i, 'knight'); if (checkWin()) return; render(); await sleep(700); }
     const alch = G.ck && diffOf(i) !== 'easy' && G.players[i].prog.find(c => c.t === 'alchemist');
-    if (alch) { await playProgress(i, alch); await sleep(300); }
+    if (alch) { await playProgress(i, alch); await sleep(700); }
     await roll(); render();
     if (checkWin()) return;
   }
   const p = G.players[i];
   let offers = [1, 1, 1, 2, 2][G.cfg.trade];
   for (let guard = 0; guard < 40; guard++) {
-    await sleep(650);
+    await sleep(1000); // one AI action at a time, with time to see each one
     if (!G.devPlayed && await aiMaybeDev(i)) { render(); if (checkWin()) return; continue; }
     if (scen().ai && await scen().ai(i)) { render(); if (checkWin()) return; continue; }
     if (G.ck && await aiCK(i)) { render(); if (checkWin()) return; continue; }
@@ -3084,7 +4590,7 @@ const scene = r => ART[r] ? `<svg class="scene" viewBox="-60 -56 120 112" preser
   : `<div class="comwin"><svg class="art"><use href="#i-${r}"/></svg></div>`; // commodities get a big emblem instead of a landscape
 const cardHTML = (r, down) => `<div class="card${down ? ' down' : ''}"><div class="face front ${r}"><div class="window">${scene(r)}</div><span class="idx"><svg><use href="#i-${r}"/></svg></span><div class="ribbon">${RNAME[r]}</div></div><div class="face back"></div></div>`;
 const VP_NAMES = ['Library', 'Market', 'Chapel', 'University', 'Great Hall'];
-const devHTML = (t, id = 0) => `<div class="card"><div class="face front dev ${t}"><div class="window"><svg class="art"><use href="#i-${t}"/></svg></div><span class="idx"><svg><use href="#i-${t}"/></svg></span><span class="dx">${DEV_TEXT[t]}</span><div class="ribbon">${t === 'vp' ? VP_NAMES[id % 5] : DEV_NAME[t]}</div></div><div class="face back devb"></div></div>`;
+const devHTML = (t, id = 0) => `<div class="card"><div class="face front dev ${t}"><div class="window"><svg class="art"><use href="#i-${DEV_ICON[t] || t}"/></svg></div><span class="idx"><svg><use href="#i-${DEV_ICON[t] || t}"/></svg></span><span class="dx">${DEV_TEXT[t]}</span><div class="ribbon">${t === 'vp' ? VP_NAMES[id % 5] : DEV_NAME[t]}</div></div><div class="face back devb"></div></div>`;
 function lane(kind, counts, canAdd, sub, list = RES) {
   return `<div class="lane">${list.map(r => `<div class="lslot${counts[r] ? ' on' : ''}">
     <button class="lcard" data-a${kind}="${r}"${canAdd(r) ? '' : ' disabled'} aria-label="Add ${RNAME[r]}">${cardHTML(r)}${counts[r] ? `<span class="cnt">${counts[r]}</span>` : ''}</button>
@@ -3365,9 +4871,10 @@ function renderBoard() {
   let hs = '';
   HEX.forEach((h, i) => {
     if (!h.land) return;
-    const on = !!hot && G.hex[i].num === hot && i !== G.robber;
+    const rolled = !!hot && (G.hex[i].num === hot || G.hex[i].alt === hot), stop = rolled && (i === G.robber || !!scen().blocked?.(i)), on = rolled && !stop;
     $('#tile' + i).classList.toggle('hot', on);
     if (on) hs += `<polygon class="hotrim" transform="translate(${f(h.x)} ${f(h.y)})" points="${HEXPTS}"/>`;
+    else if (stop) hs += `<polygon class="hotrim" style="fill:rgba(190,40,30,.12);stroke:#d8432f;stroke-dasharray:10 7;filter:drop-shadow(0 0 6px #d8432f)" transform="translate(${f(h.x)} ${f(h.y)})" points="${HEXPTS}"/>`;
   });
   if ($('#lHot').dataset.k !== hs.length + ':' + hot) { $('#lHot').innerHTML = hs; $('#lHot').dataset.k = hs.length + ':' + hot; }
   let add = '';
@@ -3444,7 +4951,7 @@ const spin = [0, 0];
 // Opponents sit clockwise from you: left column (bottom to top), top row, right column (top to bottom).
 const SEAT_LAYOUT = {2: [[1], [], [2]], 3: [[1], [2], [3]], 4: [[1], [2, 3], [4]], 5: [[2, 1], [3], [4, 5]]};
 function buildSeats() {
-  const seat = i => `<section class="seat" id="seat${i}" style="--pc:${G.players[i].color}">${avatarHTML(i)}<div class="sinfo"><div class="sname">${G.players[i].name}<span class="tagai">${G.players[i].ai ? `AI · ${G.players[i].diff}` : 'Player'}</span></div><div class="meta"></div><div class="badges"></div></div><div class="vp"><b></b><small>VP</small></div><div class="fans"><div class="fan res"></div><div class="fan dev"></div></div><div class="count"></div></section>`;
+  const seat = i => `<section class="seat" id="seat${i}" style="--pc:${G.players[i].color}">${avatarHTML(i)}<div class="sinfo"><div class="sname"><span class="nm">${G.players[i].name}</span><span class="tagai">${G.players[i].ai ? `AI · ${G.players[i].diff}` : 'Player'}</span></div><div class="meta"></div><div class="badges"></div></div><div class="vp"><b></b><small>VP</small></div><div class="fans"><div class="fan res"></div><div class="fan dev"></div></div><div class="count"></div></section>`;
   SEAT_LAYOUT[G.n - 1].forEach((ids, k) => { $(['#colL', '#rowT', '#colR'][k]).innerHTML = ids.map(id => seat((HUMAN + id) % G.n)).join(''); }); // I always sit at the bottom
   $('#me').style.setProperty('--pc', G.players[HUMAN].color);
   $('#me').innerHTML = `${avatarHTML(HUMAN, 'big')}<div class="sinfo"><div class="sname">${G.players[HUMAN].name === 'You' ? 'You' : G.players[HUMAN].name + ' (you)'}</div><div class="meta"></div><div class="badges"></div></div><div class="vp" title="Includes your secret Victory Point cards"><b></b><small>VP</small></div>`;
@@ -3467,7 +4974,7 @@ function renderSeats() {
     const imp = G.ck ? `<span title="City improvements: trade, politics, science">${TRACKS.map(t => `<span class="impips" style="--tc:${TRACK_COLOR[t]}">${[1, 2, 3, 4, 5].map(n => `<i${n <= p.imp[t] ? ' class="on"' : ''}></i>`).join('')}</span>`).join(' ')}</span>` : '';
     q('.meta').innerHTML = `<span>${G.ck ? `Knights ${knightStrength(i, true)}/${knightStrength(i)}` : `Knights ${p.knights}`}</span>${imp}<span>${G.cfg.sea ? 'Route' : 'Road'} ${p.roadLen}</span>${p.isles.length ? `<span>Islands ${p.isles.length}</span>` : ''}${scen().gold ? `<span class="goldtag">Gold ${p.gold}</span>` : ''}${scen().meta?.(i) || ''}${i === HUMAN ? `<span>Left: ${p.roads} roads${G.cfg.sea ? ` · ${p.ships} ships` : ''} · ${p.settlements} settlements · ${p.cities} cities</span>` : ''}`;
     const badges = (G.lr === i ? `<span class="badge">${LR_NAME()}</span>` : '') + (G.la === i ? '<span class="badge">Largest Army</span>' : '');
-    if (q('.badges').innerHTML !== badges) q('.badges').innerHTML = badges;
+    if (q('.badges')._html !== badges) q('.badges').innerHTML = q('.badges')._html = badges; // compare what we wrote: the page may show it translated
     if (i === HUMAN) return;
     const special = G.ck ? p.prog.map(c => PDECK[c.t]) : p.dev.map(() => 'dev'); // progress card backs show their deck colour
     const [rs, rw] = backs(sum(p.res), ''), [ds, dw] = backs(special.length, 'dev');
@@ -3486,12 +4993,14 @@ function renderHand() {
   const cw = parseFloat(getComputedStyle(box).getPropertyValue('--cw')) || 84;
   const gap = sum(me.res) && (me.dev.length || me.prog.length) ? 0.7 : 0, span = Math.max(0, items.length - 1 + gap);
   const step = span ? Math.min(cw * 0.8, (box.clientWidth - cw * 1.7) / span) : 0, tilt = Math.min(4, 44 / Math.max(1, items.length));
+  let fresh = 0;
   items.forEach((it, k) => {
     let el = live.get(it.key);
     if (el) live.delete(it.key);
     else {
       el = document.createElement('button');
       el.className = 'hcard enter' + (it.c ? ' devc progc' : it.d ? ' devc' : '');
+      el.style.setProperty('--k', Math.min(fresh++, 8)); // several new cards land one after another
       el.dataset.key = it.key;
       el.setAttribute('aria-label', it.c ? `${progName(it.c.t)} progress card` : it.d ? `${DEV_NAME[it.d.t]} card` : `${RNAME[it.r]} card`);
       el.innerHTML = it.c ? progHTML(it.c) : it.d ? devHTML(it.d.t, it.d.id) : cardHTML(it.r);
@@ -3507,7 +5016,7 @@ function renderHand() {
     if (it.c) el.classList.toggle('playable', canPlayProg(it.c));
     else if (it.d) { el.classList.toggle('playable', canPlayDev(it.d.t)); el.classList.toggle('fresh', it.d.t !== 'vp' && it.d.turn === G.turn); }
   });
-  live.forEach(el => { el.classList.add('leave'); setTimeout(() => el.remove(), 450); });
+  live.forEach(el => { el.classList.add('leave'); setTimeout(() => el.remove(), 600); });
   $('#handEmpty').hidden = items.length > 0;
   const sb = $('#selbar');
   sb.hidden = !G.sel;
@@ -3559,11 +5068,11 @@ function renderActions() {
   document.querySelectorAll('[data-build]').forEach(b => { if (hide.includes(b.dataset.build)) b.hidden = true; });
   const scb = scen().buttons || [];
   const scHTML = scb.map(b => `<button class="btn bbtn" data-sc="${b.id}" title="${b.title}"${myTurn('main') && b.can(HUMAN) ? '' : ' disabled'}><svg><use href="#${b.icon}"/></svg><span class="lbl">${b.label}</span><span class="cost">${b.cost || ''}</span></button>`).join('');
-  if ($('#scBtns').innerHTML !== scHTML) $('#scBtns').innerHTML = scHTML;
+  if ($('#scBtns')._html !== scHTML) $('#scBtns').innerHTML = $('#scBtns')._html = scHTML;
   const shown = document.querySelectorAll('.builds .bbtn:not([hidden])').length;
   $('.builds').style.gridTemplateColumns = `repeat(${shown > 6 ? 4 : shown > 4 ? 3 : 4}, minmax(0, 1fr))`;
   $('#bTrade').disabled = !myTurn('main') || G.moving;
-  $('#bTrade .lbl').textContent = SEL.size && !G.sel ? `Trade ${SEL.size}` : 'Trade';
+  $('#bTrade .lbl').textContent = SEL.size && !G.sel ? L(`Trade ${SEL.size}`, `Cambio ${SEL.size}`) : L('Trade', 'Cambio');
   $('#bEnd').disabled = !myTurn('main');
   $('#bEnd').textContent = G.phase === 'paired' && G.cur === HUMAN ? 'End paired turn' : 'End turn';
   $('#bEnd').classList.toggle('glow', myTurn('main') && !['road', 'ship', 'settlement', 'city', 'dev', 'wall', 'knights', 'improve'].some(w => can(HUMAN, w)));
@@ -3586,8 +5095,9 @@ function progBlock(c) {
   if (!progUsable(HUMAN, c.t)) return `${progName(c.t)} has no effect right now`;
   return 'Finish the current action first';
 }
-function dropHint(el) {
+function dropHint(el, n = 1) {
   const key = el.dataset.key;
+  if (n > 1) return myTurn('main') ? `Release to trade these ${n} cards` : '';
   if (key.startsWith('prog')) { const c = progOf(key); return c && canPlayProg(c) ? `Release to play ${progName(c.t)}` : ''; }
   if (key.startsWith('dev')) { const d = G.players[HUMAN].dev.find(x => 'dev' + x.id === key); return d && canPlayDev(d.t) ? `Release to play ${DEV_NAME[d.t]}` : ''; }
   if (G.sel) return 'Release to mark for discard';
@@ -3619,21 +5129,29 @@ function cardTap(el, dropped) {
 $('#hand').addEventListener('pointerdown', e => {
   const el = e.target.closest('.hcard');
   if (!el || el.classList.contains('leave') || e.button > 0) return;
-  const x0 = e.clientX, y0 = e.clientY, top = $('#hand').getBoundingClientRect().top, cell = $('#cell'), hint = dropHint(el);
-  let moved = false;
+  const x0 = e.clientX, y0 = e.clientY, top = $('#hand').getBoundingClientRect().top, cell = $('#cell');
+  // dragging a resource while others are picked carries the whole picked set, gathered in a stack under the finger
+  const isRes = k => !k.startsWith('dev') && !k.startsWith('prog');
+  const group = !G.sel && isRes(el.dataset.key) && [...SEL].some(k => k !== el.dataset.key && isRes(k))
+    ? [...$('#hand').querySelectorAll('.hcard:not(.leave)')].filter(c => c !== el && SEL.has(c.dataset.key) && isRes(c.dataset.key)) : [];
+  const hint = dropHint(el, group.length + 1), mid = r => ({x: r.left + r.width / 2, y: r.top + r.height / 2});
+  const c0 = mid(el.getBoundingClientRect()), offs = group.map((c, k) => { const m = mid(c.getBoundingClientRect()); return {x: c0.x - m.x + (k + 1) * 9, y: c0.y - m.y - (k + 1) * 4}; });
+  let moved = false, badge = null;
   el.setPointerCapture(e.pointerId);
   const move = ev => {
     const dx = ev.clientX - x0, dy = ev.clientY - y0;
     if (!moved && Math.hypot(dx, dy) < 7) return;
+    if (!moved && group.length) { badge = document.createElement('span'); badge.className = 'dragn'; badge.textContent = group.length + 1; el.appendChild(badge); }
     moved = true; el.classList.add('drag');
     el.style.setProperty('--dx', dx + 'px'); el.style.setProperty('--dy', dy + 'px');
+    group.forEach((c, k) => { c.classList.add('drag', 'follow'); c.style.setProperty('--dx', dx + offs[k].x + 'px'); c.style.setProperty('--dy', dy + offs[k].y + 'px'); });
     const over = !!hint && ev.clientY < top - 30;
     cell.classList.toggle('drophint', over); if (over) cell.dataset.hint = hint;
   };
   const up = ev => {
     el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
-    cell.classList.remove('drophint');
-    el.classList.remove('drag'); el.style.removeProperty('--dx'); el.style.removeProperty('--dy');
+    cell.classList.remove('drophint'); badge?.remove();
+    for (const c of [el, ...group]) { c.classList.remove('drag', 'follow'); c.style.removeProperty('--dx'); c.style.removeProperty('--dy'); }
     if (!moved) cardTap(el); else if (ev.type === 'pointerup' && ev.clientY < top - 30) cardTap(el, true);
   };
   el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
@@ -3941,12 +5459,13 @@ document.addEventListener('click', e => {
   else if (b.dataset.sc) { const a = (scen().buttons || []).find(x => x.id === b.dataset.sc); if (a && myTurn('main') && a.can(HUMAN)) sendCmd({c: 'sc', id: a.id}); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { resolvePick(null); drawerOpen = false; $('#drawer').classList.remove('open'); } });
-$('#speed').addEventListener('change', e => { SPEED = +e.target.value; document.documentElement.style.setProperty('--a', A()); });
+$('#speed').addEventListener('change', e => { SPEED = +e.target.value; store.set('catan.speed', String(SPEED)); document.documentElement.style.setProperty('--a', A()); });
+{ const sp = +store.get('catan.speed'); if ([...$('#speed').options].some(o => +o.value === sp)) { SPEED = sp; $('#speed').value = String(sp); } } // the last speed picked on this device
 addEventListener('resize', () => { if (G && !FAST) renderHand(); });
 
 function start(cfg) {
   hideMenu(); $('#desync')?.remove();
-  if (cfg.tutorial) { SPEED = 1.7; $('#speed').value = '1.7'; }
+  if (cfg.tutorial && SPEED < 1.7) { SPEED = 1.7; $('#speed').value = '1.7'; } // tutorials start slow, or slower if you chose that
   newGame(cfg, false); SEL.clear(); RUNNING = true;
   document.documentElement.style.setProperty('--a', A());
   $('#hand').innerHTML = ''; shownRoll = -1; tickN = -1;
@@ -4044,9 +5563,8 @@ async function selftest(perConfig = 3) {
 }
 
 // ===== online play =====
-const ON = {ws: null, cid: '', seat: -1, code: '', lobby: null, want: false, retry: 0, pending: null, chat: [], presence: [], mid: 0, outbox: new Map(), unread: 0, name: ''};
+const ON = {ws: null, cid: '', seat: -1, code: '', lobby: null, want: false, retry: 0, pending: null, chat: [], presence: [], outbox: new Map(), unread: 0, name: '', last: 0};
 try { ON.cid = localStorage.getItem('catan.cid') || ''; if (!ON.cid) { ON.cid = (crypto.randomUUID ? crypto.randomUUID() : 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36)); localStorage.setItem('catan.cid', ON.cid); } } catch { ON.cid = 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
-const store = {get: k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set: (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch { /* private mode */ } }};
 const oErr = msg => { $('#oErr').textContent = msg || ''; };
 const cfgPayload = () => ({n: CFG.n, trade: CFG.trade, sea: !!CFG.sea, ck: !!CFG.ck, scen: CFG.scen || null, friendly: !!CFG.friendly, events: !!CFG.events, harbormaster: !!CFG.harbormaster});
 function wsUrl() {
@@ -4065,22 +5583,40 @@ function onlineConnect() {
   try { ws = new WebSocket(url); } catch { oErr('That server address does not look right.'); return false; }
   ON.ws = ws; ON.want = true;
   ws.onopen = () => {
-    ON.retry = 0; clearInterval(ON.pingT); ON.pingT = setInterval(() => { if (ON.ws === ws) sendWS({t: 'ping'}); }, 20000);
+    if (ws !== ON.ws) return;
+    ON.retry = 0; ON.last = Date.now(); clearInterval(ON.pingT); ON.pingT = setInterval(() => heartbeat(ws), 10000);
     if (ON.pending) { const m = ON.pending; ON.pending = null; sendWS(m); }
     else if (ON.code) sendWS({t: 'join', room: ON.code, name: ON.name, cid: ON.cid, from: NET ? NET.n : -1});
-    for (const ev of [...ON.outbox.values()]) sendWS({t: 'ev', ev}); // anything the server may have missed
+    for (const ev of [...ON.outbox.values()]) sendWS({t: 'ev', ev}); // anything the server may have missed; it keeps each move only once
     if (NET) { toast('Back online'); render(); }
   };
-  ws.onmessage = e => { try { onlineMsg(JSON.parse(e.data)); } catch (err) { console.error(err); } };
+  ws.onmessage = e => { if (ws !== ON.ws) return; ON.last = Date.now(); try { onlineMsg(JSON.parse(e.data)); } catch (err) { console.error(err); } };
   ws.onclose = () => {
+    if (ws !== ON.ws) return; // an old connection we already replaced
     clearInterval(ON.pingT);
-    if (ws !== ON.ws || !ON.want) return;
+    if (!ON.want) return;
     if (NET) { toast('Connection lost. Reconnecting…'); }
     else if (ON.pending) { oErr('Could not reach the game server.'); ON.pending = null; ON.want = false; return; }
     ON.retry++; setTimeout(() => { if (ON.want && ON.ws === ws) { ON.ws = null; onlineConnect(); } }, Math.min(8000, 700 * ON.retry));
   };
   return true;
 }
+// A connection can die without anyone noticing (a phone locking its screen, a tunnel hiccup). The server answers every
+// ping, so a line that stays silent is dead: drop it and reconnect right away instead of waiting minutes for the browser.
+function heartbeat(ws) {
+  if (ws !== ON.ws) return;
+  if (Date.now() - ON.last > 30000) reconnectNow(); else sendWS({t: 'ping'});
+}
+function reconnectNow() {
+  if (!ON.want) return;
+  const old = ON.ws; ON.ws = null; clearInterval(ON.pingT);
+  try { old?.close(); } catch { /* already gone */ }
+  onlineConnect();
+}
+document.addEventListener('visibilitychange', () => { // back from another app or tab: check the line at once
+  if (document.visibilityState === 'visible' && ON.want && ON.code && (ON.ws?.readyState !== 1 || Date.now() - ON.last > 12000)) reconnectNow();
+});
+addEventListener('online', () => { if (ON.want && ON.code) reconnectNow(); });
 function onlineStart(msg) {
   ON.name = ($('#oName').value.trim() || store.get('catan.name') || 'Player').slice(0, 18);
   store.set('catan.name', ON.name); oErr('');
@@ -4108,24 +5644,30 @@ function onlineMsg(m) {
     }
     case 'hello': {
       if (m.reset || !NET) startOnline(m.cfg, m.events);
-      else m.events.forEach(ev => ingest(ev, false));
+      else if ((m.len ?? Infinity) < NET.n + 1) resync(); // the server restarted from an older copy: rebuild from what it has
+      else m.events.forEach(ev => ingest(ev, true)); // moves missed while away
       if (m.chat) { ON.chat = m.chat; renderChat(); }
       break;
     }
-    case 'ev': if (NET) ingest(m.ev, false); break;
+    case 'ev': if (NET) ingest(m.ev, document.hidden); break;
+    case 'reject': if (NET) resync(); break; // the server could not store one of my moves: take the shared version of the game
     case 'presence': ON.presence[m.seat] = m.online; if (NET) { if (G.players[m.seat]) toast(`${G.players[m.seat].name} ${m.online ? 'is back' : 'lost connection'}`); render(); } break;
     case 'chat': if (m.log) ON.chat = m.log; else { ON.chat.push(m.line); if (m.line.seat !== ON.seat) { ON.unread++; $('#bLog').classList.toggle('unread', !drawerOpen); } } renderChat(); break;
-    case 'desync': showDesync(m.turn); break;
+    case 'desync': if (NET) healDesync(m); break;
     case 'error':
+      if (m.code === 'replaced') { ON.want = false; clearInterval(ON.pingT); showReplaced(); break; } // keep the room: the other window is playing it
       if (m.fatal) { ON.want = false; ON.code = ''; store.set('catan.room', ''); try { ON.ws?.close(); } catch { /* ignore */ } if (!NET) { showMenu('online'); } }
       oErr(m.msg); if (!m.fatal) toast(m.msg);
       break;
   }
 }
-function showDesync(turn) {
-  if ($('#desync')) return;
-  const el = document.createElement('div'); el.id = 'desync'; el.textContent = `Someone's game drifted out of sync around turn ${turn}. Reload the page to rejoin.`;
-  document.body.appendChild(el); setTimeout(() => el.remove(), 20000);
+function showReplaced() { // this seat was opened in another tab or window; only one of them can play it
+  if ($('#replaced')) return;
+  const el = document.createElement('div'); el.id = 'replaced'; el.setAttribute('role', 'alertdialog');
+  el.style.cssText = 'position:fixed;inset:0;z-index:95;display:grid;place-items:center;padding:16px;background:rgba(2,10,16,.75);backdrop-filter:blur(3px)';
+  el.innerHTML = `<div style="width:min(420px,100%);padding:20px;border-radius:20px;background:linear-gradient(180deg,#0f3a53,#08243a);border:2px solid rgba(242,193,78,.55);text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.6)"><h2 style="margin:0 0 8px;font:700 21px/1.2 Fredoka,sans-serif;color:var(--gold)">${L('Playing in another window', 'Jugando en otra ventana')}</h2><p style="margin:0 0 16px;color:var(--muted)">${L('This game was opened in another tab or window, and only one of them can play your seat.', 'Abriste esta partida en otra pestaña o ventana, y solo una de ellas puede jugar tu puesto.')}</p><button class="btn gold">${L('Play here instead', 'Jugar aquí')}</button></div>`;
+  el.querySelector('button').onclick = () => { el.remove(); ON.retry = 0; ON.ws = null; onlineConnect(); };
+  document.body.appendChild(el);
 }
 
 // --- lobby ---
@@ -4197,7 +5739,7 @@ $('#oCreate').addEventListener('click', () => onlineStart({t: 'create', cfg: cfg
 $('#oJoin').addEventListener('click', () => { const c = $('#oCode').value.trim().toUpperCase(); if (c.length !== 4) return oErr('Room codes have 4 letters.'); ON.code = ''; onlineStart({t: 'join', room: c, from: -1}); });
 $('#oCode').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); });
 $('#oCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('#oJoin').click(); });
-$('#mLeaveOn').addEventListener('click', () => { if (confirm('Leave this online game? Your seat stays reserved, so you can rejoin from the same device.')) { const room = ON.code; onlineLeave(true); store.set('catan.room', room); location.reload(); } });
+$('#mLeaveOn').addEventListener('click', () => { if (confirm(tr('Leave this online game? Your seat stays reserved, so you can rejoin from the same device.'))) { const room = ON.code; onlineLeave(true); store.set('catan.room', room); location.reload(); } });
 function refreshHome() {
   const r = store.get('catan.room');
   $('#mRejoin').hidden = !r || !!NET; $('#mRejoin').textContent = `Rejoin room ${r}`;
@@ -4208,28 +5750,58 @@ function refreshHome() {
 $('#mRejoin').addEventListener('click', () => { const r = store.get('catan.room'); if (r) { ON.code = r; showMenu('online'); onlineStart({t: 'join', room: r, from: -1}); } });
 
 // --- the game itself: everyone runs the same rules on the same seed; only moves travel ---
+// The server's log is the single source of truth: every browser applies moves in log order. My own moves run here at
+// once (so playing feels instant) and are marked as mine, so their echo from the server is not applied twice.
 function startOnline(p, events) {
   const c = p.cfg;
-  ON.mid = 0; events.forEach(e => { if (e.s === ON.seat && e.mid > ON.mid) ON.mid = e.mid; });
-  NET = ON; Object.assign(NET, {dseq: 0, decBuf: new Map(), decWait: new Map(), cmdQ: [], cmdWake: null, n: -1, replay: events.length > 0, waiting: null, outbox: new Map()});
-  events.forEach(e => ingest(e, true));
+  NET = ON; Object.assign(NET, {sid: Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4), mid: 0, mine: new Set(), dseq: 0, decBuf: new Map(), decWait: new Map(), cmdQ: [], cmdWake: null,
+    n: -1, replay: events.length > 0, waiting: null, outbox: new Map(), sums: new Map(), asked: 0, tookOver: null});
+  events.forEach(e => ingest(e));
   FAST = NET.replay;
-  moveCfg(false);
+  moveCfg(false); $('#replaced')?.remove();
   $('#gChatBox').hidden = false; renderChat();
   MENU_OPEN = false;
   start({n: p.seats.length, trade: c.trade, sea: c.sea, ck: c.ck, scen: c.scen, friendly: c.friendly, events: c.events, harbormaster: c.harbormaster, diff: [], seats: p.seats, seed: p.seed, me: ON.seat, tutorial: null});
 }
-function ingest(ev, applyOwn) {
-  if (ev.n <= NET.n) return;
+function ingest(ev, late = false) { // late: a move that arrived while this page was away, so it may fast-forward
+  if (ev.n <= NET.n) return; // already have it
+  if (ev.n > NET.n + 1) return askLog(); // a gap: something went missing, fetch everything after the last move we have
   NET.n = ev.n;
-  if (ev.s === ON.seat && !applyOwn) { NET.outbox.delete(ev.mid); return; }
-  if (ev.k === 'dec') { const w = NET.decWait.get(ev.q); if (w) { NET.decWait.delete(ev.q); w(ev.v); } else NET.decBuf.set(ev.q, ev.v); }
-  else if (ev.k === 'cmd') { NET.cmdQ.push(ev); NET.cmdWake?.(); }
+  if (ev.s === ON.seat && ev.sid === NET.sid) { NET.outbox.delete(ev.mid); if (NET.mine.delete(ev.mid)) return; } // my own move, already played here
+  if (ev.k === 'dec') {
+    const w = NET.decWait.get(ev.q);
+    if (w) { NET.decWait.delete(ev.q); w(ev.v); }
+    else if (ev.q > NET.dseq && !NET.decBuf.has(ev.q)) NET.decBuf.set(ev.q, {v: ev.v, late}); // an answer we will need later
+    // otherwise a second answer to a settled question (say a late one after the AI took over): the first in the log counts
+  } else if (ev.k === 'cmd') { NET.cmdQ.push({...ev, late}); NET.cmdWake?.(); }
 }
-function netSend(ev) {
+function askLog() { // ask the server for every move after the last one we have; one request at a time
+  if (Date.now() - NET.asked < 1500) return;
+  NET.asked = Date.now(); sendWS({t: 'sync', from: NET.n});
+}
+function resync() { // rebuild this browser's game from the server's log (the same replay a page reload does)
+  if (!NET || Date.now() - (NET.resyncAt || 0) < 4000) return;
+  NET.resyncAt = Date.now();
+  toast(L('Syncing the game with the others…', 'Sincronizando la partida con los demás…'));
+  sendWS({t: 'sync', from: -1});
+}
+function healDesync(m) { // the server compared fingerprints: mine differs from the majority (or nobody agrees), so rebuild
+  if (m.ok != null && NET.sums.get(m.turn) === m.ok) return;
+  if (NET.healed === m.turn) return;
+  NET.healed = m.turn; resync();
+}
+function netSend(ev, played = true) { // played: this browser already ran it; otherwise it runs when the server hands it back
   if (NET.replay) return; // never re-send history while catching up
-  ev = {...ev, mid: ++NET.mid}; NET.outbox.set(ev.mid, ev);
+  ev = {...ev, mid: ++NET.mid, sid: NET.sid}; NET.outbox.set(ev.mid, ev);
+  if (played) NET.mine.add(ev.mid);
   sendWS({t: 'ev', ev});
+}
+// Pauses shrink only while this browser works through moves it missed (a phone that slept, a reconnect), so it rejoins
+// the live game quickly. Moves that arrive while the player watches always play at the speed they chose, even when
+// other browsers run at a faster setting.
+function netHurry() {
+  if (!NET || NET.replay) return 1;
+  return NET.cmdQ.some(e => e.late) || [...NET.decBuf.values()].some(d => d.late) ? 0.15 : 1;
 }
 function goLive() {
   if (!NET?.replay) return;
@@ -4244,7 +5816,7 @@ function finishDec(seat, raw, auto, dec) {
 }
 async function netDecision(seat, seq, ui, auto, enc, dec) {
   if (NET.replay && !NET.decBuf.has(seq)) goLive();
-  if (NET.decBuf.has(seq)) { const raw = NET.decBuf.get(seq); NET.decBuf.delete(seq); return finishDec(seat, raw, auto, dec); }
+  if (NET.decBuf.has(seq)) { const raw = NET.decBuf.get(seq).v; NET.decBuf.delete(seq); return finishDec(seat, raw, auto, dec); }
   if (seat === HUMAN) {
     NET.waiting = null;
     const v = await ui();
@@ -4256,18 +5828,34 @@ async function netDecision(seat, seq, ui, auto, enc, dec) {
   NET.waiting = null;
   return finishDec(seat, raw, auto, dec);
 }
+async function runCmd(c) { // a move from the log runs whatever this browser was doing
+  const id = GAME_ID;
+  G.busy = true; render();
+  try { await doCmd(c); } catch (e) { if (e !== ABORT) console.error(e); }
+  if (id !== GAME_ID) return;
+  G.busy = false; checkWin(); render();
+}
 async function netTurn(paired) {
+  let greeted = false;
   for (;;) {
     if (G.players[G.cur].ai) { await aiTurn(G.cur, paired); return; } // the AI took this seat over
     if (NET.cmdQ.length) {
-      const c = NET.cmdQ.shift().cmd;
+      const ev = NET.cmdQ.shift(), c = ev.cmd || {};
+      if (c.c === 'takeover') { if (c.seat == null || c.seat === G.cur) { G.players[G.cur].ai = true; log(`${pn(G.cur)} is now played by the AI`); } continue; }
+      if (ev.s != null && ev.s !== G.cur) continue; // a late move from a seat whose turn already went to someone else (or to the AI)
       if (c.c === 'end') return;
-      if (c.c === 'takeover') { G.players[G.cur].ai = true; log(`${pn(G.cur)} is now played by the AI`); continue; }
-      await act(() => doCmd(c));
+      await runCmd(c);
       continue;
     }
     if (NET.replay) { goLive(); continue; }
-    if (G.cur === HUMAN) { banner(paired ? 'Your paired turn' : 'Your turn'); render(); await new Promise(ok => { G.endTurn = ok; }); return; }
+    if (G.cur === HUMAN) {
+      if (!greeted) { greeted = true; banner(paired ? 'Your paired turn' : 'Your turn'); }
+      render();
+      const how = await new Promise(ok => { G.endTurn = () => ok('end'); NET.cmdWake = () => { if (!G.busy) ok('move'); }; });
+      NET.cmdWake = null;
+      if (how === 'end') return;
+      G.endTurn = null; continue; // a move for this turn came from the log (the host handed my seat to the AI)
+    }
     NET.waiting = {seat: G.cur, kind: 'cmd', since: Date.now()}; render();
     await new Promise(ok => { NET.cmdWake = ok; });
     NET.cmdWake = null; NET.waiting = null;
@@ -4278,17 +5866,26 @@ function netWaitText() {
   if (ON.presence[w.seat] === false) return `${p.name} lost connection. Waiting for them to come back…`;
   return w.kind === 'cmd' ? `${p.name} is taking ${G.phase === 'paired' ? 'the paired' : 'a'} turn…` : `Waiting for ${p.name}…`;
 }
-const canTakeover = () => NET?.waiting && ON.lobby?.host === ON.seat && (ON.presence[NET.waiting.seat] === false || Date.now() - NET.waiting.since > 90000);
-function netTakeover() {
+const canTakeover = () => NET?.waiting && NET.tookOver !== NET.waiting && ON.lobby?.host === ON.seat && (ON.presence[NET.waiting.seat] === false || Date.now() - NET.waiting.since > 90000);
+function netTakeover() { // goes through the log like any move, so every browser hands the seat over at the same point
   const w = NET.waiting; if (!w) return;
-  if (w.kind === 'dec') { netSend({k: 'dec', q: w.q, v: {__auto: 1}}); const res = NET.decWait.get(w.q); NET.decWait.delete(w.q); res?.({__auto: 1}); }
-  else { netSend({k: 'cmd', cmd: {c: 'takeover'}}); NET.cmdQ.push({cmd: {c: 'takeover'}}); NET.cmdWake?.(); }
+  NET.tookOver = w;
+  if (w.kind === 'dec') netSend({k: 'dec', q: w.q, v: {__auto: 1}}, false);
+  else netSend({k: 'cmd', cmd: {c: 'takeover', seat: w.seat}}, false);
+  render();
 }
+// Fingerprint of everything the rules decide. Browsers compare it at the start of every turn (see the server's checkSums).
 function hashState() {
-  const j = JSON.stringify([RNG_S, G.turn, G.cur, G.bank, G.players.map(p => [p.res, p.dev.length, p.knights, p.roads, p.settlements, p.cities, p.ships, p.gold, p.imp]), G.bld, G.road, G.ship, G.robber, G.lr, G.la, G.dice]);
+  const j = JSON.stringify([RNG_S, G.turn, G.cur, G.bank, G.players.map(p => [p.res, p.dev.map(d => d.t + d.turn), p.prog.map(c => c.t), p.knights, p.roads, p.settlements, p.cities, p.ships, p.gold, p.imp, !!p.ai]),
+    G.bld, G.road, G.ship, G.robber, G.pirate, G.lr, G.la, G.dice, G.kn, G.wall, G.metro, G.barb, G.deck.length, G.hex.map(t => t.num)]);
   let h = 2166136261; for (let i = 0; i < j.length; i++) { h ^= j.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0;
 }
-function netSum() { if (NET && !NET.replay && ON.ws?.readyState === 1) sendWS({t: 'ev', ev: {k: 'sum', turn: G.turn, h: hashState()}}); }
+function netSum() {
+  if (!NET || NET.replay) return;
+  const h = hashState();
+  NET.sums.set(G.turn, h); if (NET.sums.size > 40) NET.sums.delete(NET.sums.keys().next().value);
+  sendWS({t: 'ev', ev: {k: 'sum', turn: G.turn, h}});
+}
 setInterval(() => { if (NET?.waiting && !FAST && !MENU_OPEN) renderActions(); }, 5000);
 
 if (location.hash === '#selftest') selftest(); else {

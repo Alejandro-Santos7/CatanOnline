@@ -30,7 +30,8 @@ Keep the game files served by the same server (default). To host the HTML elsewh
 ## Environment
 
 - `PORT` — listen port (default 8080)
-- `DATA_FILE` — optional path; rooms are saved there so games survive a server restart
+- `DATA_FILE` — optional path; rooms are saved there (about a second after each move, and on Ctrl+C) so games
+  survive a server restart
 
 ## Things to know
 
@@ -38,7 +39,11 @@ Keep the game files served by the same server (default). To host the HTML elsewh
   could peek at hidden cards). Fine for friends, not for strangers.
 - If a player's connection drops, they rejoin from the same browser and replay to the current state.
   Use **Take over with AI** if someone stays away.
-- A desync (browsers disagree) shows a banner; it should never happen, but reload rejoins cleanly.
+- The server's move log is the single source of truth. A browser that misses a move (a flaky tunnel, a phone
+  that slept) notices the gap and fetches what it missed; a silent connection is replaced after 30 seconds.
+- Every turn the browsers compare a fingerprint of the game. One that disagrees with the majority rebuilds
+  itself from the server's log automatically, so nobody needs to reload.
+- Opening the same game in a second tab takes the seat over; the first tab offers to take it back.
 
 ## Troubleshooting
 
