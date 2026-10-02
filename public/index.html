@@ -854,7 +854,7 @@ function sleep(ms) {
   const id = GAME_ID;
   return new Promise((ok, no) => { // the AI waits while the menu is open
     const tick = () => id !== GAME_ID ? no(ABORT) : MENU_OPEN ? setTimeout(tick, 250) : ok();
-    setTimeout(tick, ms * SPEED);
+    setTimeout(tick, ms * SPEED * (NET ? netHurry() : 1)); // online: a browser that fell behind catches up faster
   });
 }
 
@@ -1137,11 +1137,18 @@ async function takeGold(i, k, title = 'Gold field', why = 'Your gold field paid 
 }
 async function produce(n) {
   const gain = G.players.map(emptyRes), gold = G.players.map(() => 0), trips = [];
+  const why = []; // the local player's tiles that paid nothing this roll, so they see the reason instead of a silent miss
   HEX.forEach((h, hi) => {
     const t = G.hex[hi];
     if (t.num !== n && t.alt !== n) return; // Rivers: one tile answers to both 2 and 12
-    if (hi === G.robber) { if (h.v.some(v => G.bld[v])) log(`The robber blocked ${TNAME[t.res]} ${n}`); return; }
-    if (scen().blocked?.(hi) || !RES.includes(t.res) && t.res !== 'gold') return; // only resource tiles produce cards
+    const mine = h.v.some(v => G.bld[v]?.p === HUMAN);
+    if (hi === G.robber) {
+      if (h.v.some(v => G.bld[v])) log(`The robber blocked ${TNAME[t.res]} ${n}`);
+      if (mine) why.push(L(`the robber is on your ${TNAME[t.res]} ${n}`, `el ladrón está en tu ${TNAME[t.res]} ${n}`));
+      return;
+    }
+    if (scen().blocked?.(hi)) { if (mine) why.push(L(`your ${TNAME[t.res]} ${n} is held by barbarians`, `tu ${TNAME[t.res]} ${n} está en manos de los bárbaros`)); return; }
+    if (!RES.includes(t.res) && t.res !== 'gold') return; // only resource tiles produce cards
     h.v.forEach(v => {
       const b = G.bld[v];
       if (!b) return;
@@ -1158,10 +1165,17 @@ async function produce(n) {
     const takers = gain.map((g, i) => g[r] ? i : -1).filter(i => i >= 0), need = takers.reduce((t, i) => t + gain[i][r], 0);
     if (!need) return;
     if (need > G.bank[r] && takers.length > 1) { // bank shortage: nobody gets that resource
-      log(`The bank ran short of ${RNAME[r]}, so nobody collects it`); takers.forEach(i => { gain[i][r] = 0; }); return;
+      log(`The bank ran short of ${RNAME[r]}, so nobody collects it`);
+      if (gain[HUMAN]?.[r]) why.push(L(`the bank ran short of ${RNAME[r]}, so nobody collects it`, `el banco no tiene suficiente ${RNAME[r]}, así que nadie lo cobra`));
+      takers.forEach(i => { gain[i][r] = 0; }); return;
     }
-    takers.forEach(i => { gain[i][r] = take(i, r, gain[i][r]); });
+    takers.forEach(i => {
+      const owed = gain[i][r];
+      gain[i][r] = take(i, r, owed);
+      if (i === HUMAN && gain[i][r] < owed) why.push(L(`the bank only had ${gain[i][r]} ${RNAME[r]} left`, `al banco solo le quedaba${gain[i][r] === 1 ? '' : 'n'} ${gain[i][r]} de ${RNAME[r]}`));
+    });
   });
+  if (why.length && G.players[HUMAN] && !G.players[HUMAN].ai) toast(L('No cards from ', 'Sin cartas: ') + why.join(' · '));
   let k = 0;
   trips.forEach(tr => { if (gain[tr.p][tr.r]) for (let m = 0; m < tr.n; m++) fly(hexPt(tr.hi), seatPt(tr.p), mini(tr.r), 110 * k++); });
   const lines = gain.map((g, i) => sum(g) ? `${pn(i)} +${resList(g)}` : null).filter(Boolean);
@@ -2026,8 +2040,8 @@ SC.barb = {
         for (const e of Object.keys(G.bk).map(Number).filter(e => G.bk[e] === i)) {
           const far = G.players[i].res.grain ? 5 : 3, opts = knightMovesBA(e, far);
           if (!opts.length) continue;
-          const pending = pick('edge', opts.map(o => o[0]), `Move this knight (glowing paths${far > 3 ? '; 4-5 steps cost a grain' : ''}), or Esc to leave it`); G.pick.what = 'bmove';
-          G.pick.from = e; render();
+          const pending = pick('edge', opts.map(o => o[0]), `Move this knight (glowing paths${far > 3 ? '; 4-5 steps cost a grain' : ''}), or Esc to leave it`);
+          if (G.pick) { G.pick.what = 'bmove'; G.pick.from = e; } render(); // only the deciding player's browser shows the pick
           const to = await pending;
           if (to === null) continue;
           if (opts.find(o => o[0] === to)[1] > 3) pay(i, {grain: 1});
@@ -2104,7 +2118,7 @@ async function moveWagon(i) {
     v = best(dests, x => -d(x) - paths[x][1] * 3 - (paths[x][0] > base ? 20 : 0));
     if (d(v) >= d(p.wagon)) return;
   } else {
-    const pending = pick('vert', dests, `Move your wagon${p.cargo ? ` (carrying ${GOOD_NAME[p.cargo]} to the ${TNAME[target]})` : ' to any trade hex'}. ${base} MP${boost ? ', +2 more for a grain' : ''} · Esc cancels`); G.pick.what = 'wagon'; render();
+    const pending = pick('vert', dests, `Move your wagon${p.cargo ? ` (carrying ${GOOD_NAME[p.cargo]} to the ${TNAME[target]})` : ' to any trade hex'}. ${base} MP${boost ? ', +2 more for a grain' : ''} · Esc cancels`); if (G.pick) G.pick.what = 'wagon'; render(); // only the deciding player's browser shows the pick
     v = await pending;
     if (v === null) return;
   }
@@ -3373,9 +3387,10 @@ function renderBoard() {
   let hs = '';
   HEX.forEach((h, i) => {
     if (!h.land) return;
-    const on = !!hot && G.hex[i].num === hot && i !== G.robber;
+    const rolled = !!hot && (G.hex[i].num === hot || G.hex[i].alt === hot), stop = rolled && (i === G.robber || !!scen().blocked?.(i)), on = rolled && !stop;
     $('#tile' + i).classList.toggle('hot', on);
     if (on) hs += `<polygon class="hotrim" transform="translate(${f(h.x)} ${f(h.y)})" points="${HEXPTS}"/>`;
+    else if (stop) hs += `<polygon class="hotrim" style="fill:rgba(190,40,30,.12);stroke:#d8432f;stroke-dasharray:10 7;filter:drop-shadow(0 0 6px #d8432f)" transform="translate(${f(h.x)} ${f(h.y)})" points="${HEXPTS}"/>`;
   });
   if ($('#lHot').dataset.k !== hs.length + ':' + hot) { $('#lHot').innerHTML = hs; $('#lHot').dataset.k = hs.length + ':' + hot; }
   let add = '';
@@ -4053,7 +4068,7 @@ async function selftest(perConfig = 3) {
 }
 
 // ===== online play =====
-const ON = {ws: null, cid: '', seat: -1, code: '', lobby: null, want: false, retry: 0, pending: null, chat: [], presence: [], mid: 0, outbox: new Map(), unread: 0, name: ''};
+const ON = {ws: null, cid: '', seat: -1, code: '', lobby: null, want: false, retry: 0, pending: null, chat: [], presence: [], outbox: new Map(), unread: 0, name: '', last: 0};
 try { ON.cid = localStorage.getItem('catan.cid') || ''; if (!ON.cid) { ON.cid = (crypto.randomUUID ? crypto.randomUUID() : 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36)); localStorage.setItem('catan.cid', ON.cid); } } catch { ON.cid = 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
 const oErr = msg => { $('#oErr').textContent = msg || ''; };
 const cfgPayload = () => ({n: CFG.n, trade: CFG.trade, sea: !!CFG.sea, ck: !!CFG.ck, scen: CFG.scen || null, friendly: !!CFG.friendly, events: !!CFG.events, harbormaster: !!CFG.harbormaster});
@@ -4073,22 +4088,40 @@ function onlineConnect() {
   try { ws = new WebSocket(url); } catch { oErr('That server address does not look right.'); return false; }
   ON.ws = ws; ON.want = true;
   ws.onopen = () => {
-    ON.retry = 0; clearInterval(ON.pingT); ON.pingT = setInterval(() => { if (ON.ws === ws) sendWS({t: 'ping'}); }, 20000);
+    if (ws !== ON.ws) return;
+    ON.retry = 0; ON.last = Date.now(); clearInterval(ON.pingT); ON.pingT = setInterval(() => heartbeat(ws), 10000);
     if (ON.pending) { const m = ON.pending; ON.pending = null; sendWS(m); }
     else if (ON.code) sendWS({t: 'join', room: ON.code, name: ON.name, cid: ON.cid, from: NET ? NET.n : -1});
-    for (const ev of [...ON.outbox.values()]) sendWS({t: 'ev', ev}); // anything the server may have missed
+    for (const ev of [...ON.outbox.values()]) sendWS({t: 'ev', ev}); // anything the server may have missed; it keeps each move only once
     if (NET) { toast('Back online'); render(); }
   };
-  ws.onmessage = e => { try { onlineMsg(JSON.parse(e.data)); } catch (err) { console.error(err); } };
+  ws.onmessage = e => { if (ws !== ON.ws) return; ON.last = Date.now(); try { onlineMsg(JSON.parse(e.data)); } catch (err) { console.error(err); } };
   ws.onclose = () => {
+    if (ws !== ON.ws) return; // an old connection we already replaced
     clearInterval(ON.pingT);
-    if (ws !== ON.ws || !ON.want) return;
+    if (!ON.want) return;
     if (NET) { toast('Connection lost. Reconnecting…'); }
     else if (ON.pending) { oErr('Could not reach the game server.'); ON.pending = null; ON.want = false; return; }
     ON.retry++; setTimeout(() => { if (ON.want && ON.ws === ws) { ON.ws = null; onlineConnect(); } }, Math.min(8000, 700 * ON.retry));
   };
   return true;
 }
+// A connection can die without anyone noticing (a phone locking its screen, a tunnel hiccup). The server answers every
+// ping, so a line that stays silent is dead: drop it and reconnect right away instead of waiting minutes for the browser.
+function heartbeat(ws) {
+  if (ws !== ON.ws) return;
+  if (Date.now() - ON.last > 30000) reconnectNow(); else sendWS({t: 'ping'});
+}
+function reconnectNow() {
+  if (!ON.want) return;
+  const old = ON.ws; ON.ws = null; clearInterval(ON.pingT);
+  try { old?.close(); } catch { /* already gone */ }
+  onlineConnect();
+}
+document.addEventListener('visibilitychange', () => { // back from another app or tab: check the line at once
+  if (document.visibilityState === 'visible' && ON.want && ON.code && (ON.ws?.readyState !== 1 || Date.now() - ON.last > 12000)) reconnectNow();
+});
+addEventListener('online', () => { if (ON.want && ON.code) reconnectNow(); });
 function onlineStart(msg) {
   ON.name = ($('#oName').value.trim() || store.get('catan.name') || 'Player').slice(0, 18);
   store.set('catan.name', ON.name); oErr('');
@@ -4116,24 +4149,30 @@ function onlineMsg(m) {
     }
     case 'hello': {
       if (m.reset || !NET) startOnline(m.cfg, m.events);
-      else m.events.forEach(ev => ingest(ev, false));
+      else if ((m.len ?? Infinity) < NET.n + 1) resync(); // the server restarted from an older copy: rebuild from what it has
+      else m.events.forEach(ev => ingest(ev));
       if (m.chat) { ON.chat = m.chat; renderChat(); }
       break;
     }
-    case 'ev': if (NET) ingest(m.ev, false); break;
+    case 'ev': if (NET) ingest(m.ev); break;
+    case 'reject': if (NET) resync(); break; // the server could not store one of my moves: take the shared version of the game
     case 'presence': ON.presence[m.seat] = m.online; if (NET) { if (G.players[m.seat]) toast(`${G.players[m.seat].name} ${m.online ? 'is back' : 'lost connection'}`); render(); } break;
     case 'chat': if (m.log) ON.chat = m.log; else { ON.chat.push(m.line); if (m.line.seat !== ON.seat) { ON.unread++; $('#bLog').classList.toggle('unread', !drawerOpen); } } renderChat(); break;
-    case 'desync': showDesync(m.turn); break;
+    case 'desync': if (NET) healDesync(m); break;
     case 'error':
+      if (m.code === 'replaced') { ON.want = false; clearInterval(ON.pingT); showReplaced(); break; } // keep the room: the other window is playing it
       if (m.fatal) { ON.want = false; ON.code = ''; store.set('catan.room', ''); try { ON.ws?.close(); } catch { /* ignore */ } if (!NET) { showMenu('online'); } }
       oErr(m.msg); if (!m.fatal) toast(m.msg);
       break;
   }
 }
-function showDesync(turn) {
-  if ($('#desync')) return;
-  const el = document.createElement('div'); el.id = 'desync'; el.textContent = `Someone's game drifted out of sync around turn ${turn}. Reload the page to rejoin.`;
-  document.body.appendChild(el); setTimeout(() => el.remove(), 20000);
+function showReplaced() { // this seat was opened in another tab or window; only one of them can play it
+  if ($('#replaced')) return;
+  const el = document.createElement('div'); el.id = 'replaced'; el.setAttribute('role', 'alertdialog');
+  el.style.cssText = 'position:fixed;inset:0;z-index:95;display:grid;place-items:center;padding:16px;background:rgba(2,10,16,.75);backdrop-filter:blur(3px)';
+  el.innerHTML = `<div style="width:min(420px,100%);padding:20px;border-radius:20px;background:linear-gradient(180deg,#0f3a53,#08243a);border:2px solid rgba(242,193,78,.55);text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.6)"><h2 style="margin:0 0 8px;font:700 21px/1.2 Fredoka,sans-serif;color:var(--gold)">${L('Playing in another window', 'Jugando en otra ventana')}</h2><p style="margin:0 0 16px;color:var(--muted)">${L('This game was opened in another tab or window, and only one of them can play your seat.', 'Abriste esta partida en otra pestaña o ventana, y solo una de ellas puede jugar tu puesto.')}</p><button class="btn gold">${L('Play here instead', 'Jugar aquí')}</button></div>`;
+  el.querySelector('button').onclick = () => { el.remove(); ON.retry = 0; ON.ws = null; onlineConnect(); };
+  document.body.appendChild(el);
 }
 
 // --- lobby ---
@@ -4216,28 +4255,59 @@ function refreshHome() {
 $('#mRejoin').addEventListener('click', () => { const r = store.get('catan.room'); if (r) { ON.code = r; showMenu('online'); onlineStart({t: 'join', room: r, from: -1}); } });
 
 // --- the game itself: everyone runs the same rules on the same seed; only moves travel ---
+// The server's log is the single source of truth: every browser applies moves in log order. My own moves run here at
+// once (so playing feels instant) and are marked as mine, so their echo from the server is not applied twice.
 function startOnline(p, events) {
   const c = p.cfg;
-  ON.mid = 0; events.forEach(e => { if (e.s === ON.seat && e.mid > ON.mid) ON.mid = e.mid; });
-  NET = ON; Object.assign(NET, {dseq: 0, decBuf: new Map(), decWait: new Map(), cmdQ: [], cmdWake: null, n: -1, replay: events.length > 0, waiting: null, outbox: new Map()});
-  events.forEach(e => ingest(e, true));
+  NET = ON; Object.assign(NET, {sid: Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4), mid: 0, mine: new Set(), dseq: 0, decBuf: new Map(), decWait: new Map(), cmdQ: [], cmdWake: null,
+    n: -1, replay: events.length > 0, waiting: null, outbox: new Map(), sums: new Map(), asked: 0, tookOver: null});
+  events.forEach(e => ingest(e));
   FAST = NET.replay;
-  moveCfg(false);
+  moveCfg(false); $('#replaced')?.remove();
   $('#gChatBox').hidden = false; renderChat();
   MENU_OPEN = false;
   start({n: p.seats.length, trade: c.trade, sea: c.sea, ck: c.ck, scen: c.scen, friendly: c.friendly, events: c.events, harbormaster: c.harbormaster, diff: [], seats: p.seats, seed: p.seed, me: ON.seat, tutorial: null});
 }
-function ingest(ev, applyOwn) {
-  if (ev.n <= NET.n) return;
+function ingest(ev) {
+  if (ev.n <= NET.n) return; // already have it
+  if (ev.n > NET.n + 1) return askLog(); // a gap: something went missing, fetch everything after the last move we have
   NET.n = ev.n;
-  if (ev.s === ON.seat && !applyOwn) { NET.outbox.delete(ev.mid); return; }
-  if (ev.k === 'dec') { const w = NET.decWait.get(ev.q); if (w) { NET.decWait.delete(ev.q); w(ev.v); } else NET.decBuf.set(ev.q, ev.v); }
-  else if (ev.k === 'cmd') { NET.cmdQ.push(ev); NET.cmdWake?.(); }
+  if (ev.s === ON.seat && ev.sid === NET.sid) { NET.outbox.delete(ev.mid); if (NET.mine.delete(ev.mid)) return; } // my own move, already played here
+  if (ev.k === 'dec') {
+    const w = NET.decWait.get(ev.q);
+    if (w) { NET.decWait.delete(ev.q); w(ev.v); }
+    else if (ev.q > NET.dseq && !NET.decBuf.has(ev.q)) NET.decBuf.set(ev.q, {v: ev.v, at: Date.now()}); // an answer we will need later
+    // otherwise a second answer to a settled question (say a late one after the AI took over): the first in the log counts
+  } else if (ev.k === 'cmd') { NET.cmdQ.push({...ev, at: Date.now()}); NET.cmdWake?.(); }
 }
-function netSend(ev) {
+function askLog() { // ask the server for every move after the last one we have; one request at a time
+  if (Date.now() - NET.asked < 1500) return;
+  NET.asked = Date.now(); sendWS({t: 'sync', from: NET.n});
+}
+function resync() { // rebuild this browser's game from the server's log (the same replay a page reload does)
+  if (!NET || Date.now() - (NET.resyncAt || 0) < 4000) return;
+  NET.resyncAt = Date.now();
+  toast(L('Syncing the game with the others…', 'Sincronizando la partida con los demás…'));
+  sendWS({t: 'sync', from: -1});
+}
+function healDesync(m) { // the server compared fingerprints: mine differs from the majority (or nobody agrees), so rebuild
+  if (m.ok != null && NET.sums.get(m.turn) === m.ok) return;
+  if (NET.healed === m.turn) return;
+  NET.healed = m.turn; resync();
+}
+function netSend(ev, played = true) { // played: this browser already ran it; otherwise it runs when the server hands it back
   if (NET.replay) return; // never re-send history while catching up
-  ev = {...ev, mid: ++NET.mid}; NET.outbox.set(ev.mid, ev);
+  ev = {...ev, mid: ++NET.mid, sid: NET.sid}; NET.outbox.set(ev.mid, ev);
+  if (played) NET.mine.add(ev.mid);
   sendWS({t: 'ev', ev});
+}
+// How far behind the live game this browser is: moves that arrived a while ago and are still waiting their turn here
+// (a phone that slept, a slower speed setting). Pauses shrink until it catches up; the game itself is unchanged.
+function netHurry() {
+  if (!NET || NET.replay) return 1;
+  let oldest = NET.cmdQ.length ? NET.cmdQ[0].at : Infinity;
+  for (const d of NET.decBuf.values()) oldest = Math.min(oldest, d.at);
+  return Date.now() - oldest > 2500 ? 0.25 : 1;
 }
 function goLive() {
   if (!NET?.replay) return;
@@ -4252,7 +4322,7 @@ function finishDec(seat, raw, auto, dec) {
 }
 async function netDecision(seat, seq, ui, auto, enc, dec) {
   if (NET.replay && !NET.decBuf.has(seq)) goLive();
-  if (NET.decBuf.has(seq)) { const raw = NET.decBuf.get(seq); NET.decBuf.delete(seq); return finishDec(seat, raw, auto, dec); }
+  if (NET.decBuf.has(seq)) { const raw = NET.decBuf.get(seq).v; NET.decBuf.delete(seq); return finishDec(seat, raw, auto, dec); }
   if (seat === HUMAN) {
     NET.waiting = null;
     const v = await ui();
@@ -4264,18 +4334,34 @@ async function netDecision(seat, seq, ui, auto, enc, dec) {
   NET.waiting = null;
   return finishDec(seat, raw, auto, dec);
 }
+async function runCmd(c) { // a move from the log runs whatever this browser was doing
+  const id = GAME_ID;
+  G.busy = true; render();
+  try { await doCmd(c); } catch (e) { if (e !== ABORT) console.error(e); }
+  if (id !== GAME_ID) return;
+  G.busy = false; checkWin(); render();
+}
 async function netTurn(paired) {
+  let greeted = false;
   for (;;) {
     if (G.players[G.cur].ai) { await aiTurn(G.cur, paired); return; } // the AI took this seat over
     if (NET.cmdQ.length) {
-      const c = NET.cmdQ.shift().cmd;
+      const ev = NET.cmdQ.shift(), c = ev.cmd || {};
+      if (c.c === 'takeover') { if (c.seat == null || c.seat === G.cur) { G.players[G.cur].ai = true; log(`${pn(G.cur)} is now played by the AI`); } continue; }
+      if (ev.s != null && ev.s !== G.cur) continue; // a late move from a seat whose turn already went to someone else (or to the AI)
       if (c.c === 'end') return;
-      if (c.c === 'takeover') { G.players[G.cur].ai = true; log(`${pn(G.cur)} is now played by the AI`); continue; }
-      await act(() => doCmd(c));
+      await runCmd(c);
       continue;
     }
     if (NET.replay) { goLive(); continue; }
-    if (G.cur === HUMAN) { banner(paired ? 'Your paired turn' : 'Your turn'); render(); await new Promise(ok => { G.endTurn = ok; }); return; }
+    if (G.cur === HUMAN) {
+      if (!greeted) { greeted = true; banner(paired ? 'Your paired turn' : 'Your turn'); }
+      render();
+      const how = await new Promise(ok => { G.endTurn = () => ok('end'); NET.cmdWake = () => { if (!G.busy) ok('move'); }; });
+      NET.cmdWake = null;
+      if (how === 'end') return;
+      G.endTurn = null; continue; // a move for this turn came from the log (the host handed my seat to the AI)
+    }
     NET.waiting = {seat: G.cur, kind: 'cmd', since: Date.now()}; render();
     await new Promise(ok => { NET.cmdWake = ok; });
     NET.cmdWake = null; NET.waiting = null;
@@ -4286,17 +4372,26 @@ function netWaitText() {
   if (ON.presence[w.seat] === false) return `${p.name} lost connection. Waiting for them to come back…`;
   return w.kind === 'cmd' ? `${p.name} is taking ${G.phase === 'paired' ? 'the paired' : 'a'} turn…` : `Waiting for ${p.name}…`;
 }
-const canTakeover = () => NET?.waiting && ON.lobby?.host === ON.seat && (ON.presence[NET.waiting.seat] === false || Date.now() - NET.waiting.since > 90000);
-function netTakeover() {
+const canTakeover = () => NET?.waiting && NET.tookOver !== NET.waiting && ON.lobby?.host === ON.seat && (ON.presence[NET.waiting.seat] === false || Date.now() - NET.waiting.since > 90000);
+function netTakeover() { // goes through the log like any move, so every browser hands the seat over at the same point
   const w = NET.waiting; if (!w) return;
-  if (w.kind === 'dec') { netSend({k: 'dec', q: w.q, v: {__auto: 1}}); const res = NET.decWait.get(w.q); NET.decWait.delete(w.q); res?.({__auto: 1}); }
-  else { netSend({k: 'cmd', cmd: {c: 'takeover'}}); NET.cmdQ.push({cmd: {c: 'takeover'}}); NET.cmdWake?.(); }
+  NET.tookOver = w;
+  if (w.kind === 'dec') netSend({k: 'dec', q: w.q, v: {__auto: 1}}, false);
+  else netSend({k: 'cmd', cmd: {c: 'takeover', seat: w.seat}}, false);
+  render();
 }
+// Fingerprint of everything the rules decide. Browsers compare it at the start of every turn (see the server's checkSums).
 function hashState() {
-  const j = JSON.stringify([RNG_S, G.turn, G.cur, G.bank, G.players.map(p => [p.res, p.dev.length, p.knights, p.roads, p.settlements, p.cities, p.ships, p.gold, p.imp]), G.bld, G.road, G.ship, G.robber, G.lr, G.la, G.dice]);
+  const j = JSON.stringify([RNG_S, G.turn, G.cur, G.bank, G.players.map(p => [p.res, p.dev.map(d => d.t + d.turn), p.prog.map(c => c.t), p.knights, p.roads, p.settlements, p.cities, p.ships, p.gold, p.imp, !!p.ai]),
+    G.bld, G.road, G.ship, G.robber, G.pirate, G.lr, G.la, G.dice, G.kn, G.wall, G.metro, G.barb, G.deck.length, G.hex.map(t => t.num)]);
   let h = 2166136261; for (let i = 0; i < j.length; i++) { h ^= j.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0;
 }
-function netSum() { if (NET && !NET.replay && ON.ws?.readyState === 1) sendWS({t: 'ev', ev: {k: 'sum', turn: G.turn, h: hashState()}}); }
+function netSum() {
+  if (!NET || NET.replay) return;
+  const h = hashState();
+  NET.sums.set(G.turn, h); if (NET.sums.size > 40) NET.sums.delete(NET.sums.keys().next().value);
+  sendWS({t: 'ev', ev: {k: 'sum', turn: G.turn, h}});
+}
 setInterval(() => { if (NET?.waiting && !FAST && !MENU_OPEN) renderActions(); }, 5000);
 
 if (location.hash === '#selftest') selftest(); else {

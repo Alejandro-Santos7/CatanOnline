@@ -4,6 +4,9 @@
 // The game itself runs in every player's browser (same seed, same rules). This server never
 // looks at the rules: it hands out room codes, seats and colors, stamps every move with a
 // sequence number, keeps the full move log so anyone can reconnect, and forwards messages.
+// The log is the single source of truth: every browser applies moves in log order, a move is
+// stored once even if a flaky connection sends it twice, and a browser that drifts from the
+// others is told to rebuild its game from the log.
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -22,15 +25,24 @@ const rid = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; let c; do { c = Array.
 const clean = (s, n = 18) => String(s ?? '').replace(/[\u0000-\u001f<>&"']/g, '').trim().slice(0, n);
 
 // ---------- persistence ----------
+const evKey = (s, sid, mid) => `${s}:${sid || ''}:${mid}`; // one move = one key, however often it is sent
 function save() {
   if (!DATA_FILE) return;
-  const out = [...rooms.values()].filter(r => r.started).map(r => ({code: r.code, host: r.host, cfg: r.cfg, seats: r.seats, seed: r.seed, log: r.log, made: r.made, last: r.last}));
+  const out = [...rooms.values()].filter(r => r.started).map(r => ({code: r.code, host: r.host, cfg: r.cfg, seats: r.seats, seed: r.seed, startCfg: r.startCfg, log: r.log, made: r.made, last: r.last}));
   try { fs.writeFileSync(DATA_FILE + '.tmp', JSON.stringify(out)); fs.renameSync(DATA_FILE + '.tmp', DATA_FILE); } catch (e) { console.error('save failed', e.message); }
+}
+let saveT = null;
+function touched(r) { // save shortly after a change, so a restart loses at most a second of play
+  r.dirty = true;
+  if (DATA_FILE && !saveT) saveT = setTimeout(() => { saveT = null; save(); }, 1000);
 }
 function load() {
   if (!DATA_FILE || !fs.existsSync(DATA_FILE)) return;
   try {
-    for (const r of JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))) rooms.set(r.code, {...r, started: true, clients: new Map(), sums: new Map(), mids: {}, chat: [], dirty: false});
+    for (const r of JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))) {
+      const seen = new Set(r.log.filter(e => e.mid).map(e => evKey(e.s, e.sid, e.mid)));
+      rooms.set(r.code, {...r, started: true, clients: new Map(), sums: new Map(), seen, chat: [], dirty: false});
+    }
     console.log(`restored ${rooms.size} room(s)`);
   } catch (e) { console.error('load failed', e.message); }
 }
@@ -44,6 +56,7 @@ function accept(req, socket) {
   socket.setNoDelay(true);
   const ws = {socket, alive: true, buf: Buffer.alloc(0), frag: [], open: true, cid: null, room: null, on: {}};
   socket.on('data', d => {
+    ws.alive = true; // any traffic proves the connection still works
     ws.buf = Buffer.concat([ws.buf, d]);
     if (ws.buf.length > 1 << 20) return close(ws);
     for (;;) {
@@ -102,7 +115,7 @@ function resize(r, n) {
   }
 }
 function newRoom(cid, name, cfg) {
-  const r = {code: rid(), host: cid, cfg: sanitizeCfg(cfg), seats: [], started: false, log: [], clients: new Map(), sums: new Map(), mids: {}, chat: [], made: now(), last: now(), seed: 0};
+  const r = {code: rid(), host: cid, cfg: sanitizeCfg(cfg), seats: [], started: false, log: [], clients: new Map(), sums: new Map(), seen: new Set(), chat: [], made: now(), last: now(), seed: 0};
   r.seats.push({kind: 'human', cid, name, color: 0, diff: 'normal'});
   resize(r, r.cfg.n);
   rooms.set(r.code, r);
@@ -142,13 +155,15 @@ function handle(ws, raw) {
       r.seats[seat] = {kind: 'human', cid, name, color: r.seats[seat].color, diff: 'normal'};
     }
     r.seats[seat].name = name;
-    const old = r.clients.get(cid); if (old && old !== ws && old.open) { old.room = null; close(old); }
+    const old = r.clients.get(cid);
+    if (old && old !== ws && old.open) { // the same player opened the game again (another tab or window): the newest one plays
+      old.room = null; send(old, {t: 'error', code: 'replaced', fatal: true, msg: 'This game is open in another tab or window'}); close(old);
+    }
     ws.cid = cid; ws.room = r.code; r.clients.set(cid, ws); r.last = now();
     if (!r.clients.get(r.host)?.open) r.host = cid;
     send(ws, {t: 'you', seat, code: r.code});
     if (r.started) {
-      const from = Number.isInteger(m.from) ? m.from : -1;
-      send(ws, {t: 'hello', cfg: r.startCfg || startPayload(r), reset: from < 0, from, events: r.log.slice(from + 1), chat: r.chat.slice(-50)});
+      sendLog(ws, r, Number.isInteger(m.from) ? m.from : -1);
       broadcast(r, {t: 'presence', seat, online: true}, ws);
     } else send(ws, {t: 'chat', log: r.chat.slice(-50)});
     return pushLobby(r);
@@ -182,27 +197,26 @@ function handle(ws, raw) {
       r.seats.forEach(s => { if (s.kind === 'open') { s.kind = 'ai'; s.diff = 'normal'; } });
       r.seats.forEach(s => { if (s.kind === 'ai') s.name = ['Blue', 'Red', 'Orange', 'White', 'Green', 'Brown'][s.color]; });
       r.seed = crypto.randomInt(1, 2 ** 31);
-      r.started = true; r.log = []; r.startCfg = startPayload(r);
-      for (const [cid, w] of r.clients) send(w, {t: 'hello', cfg: r.startCfg, reset: true, from: -1, events: [], chat: r.chat.slice(-50)});
-      pushLobby(r); save(); break;
+      r.started = true; r.log = []; r.seen = new Set(); r.sums = new Map(); r.startCfg = startPayload(r);
+      for (const w of r.clients.values()) sendLog(w, r, -1);
+      pushLobby(r); touched(r); break;
+    }
+    case 'sync': { // a browser missed something or drifted: send the log from where it asks (-1 = rebuild from the start)
+      if (r.started) sendLog(ws, r, Number.isInteger(m.from) ? Math.max(-1, Math.min(m.from, r.log.length - 1)) : -1);
+      break;
     }
     case 'ev': {
-      if (!r.started || seat < 0 || !m.ev || typeof m.ev !== 'object') break;
-      if (m.ev.k === 'sum') { // desync watchdog: every browser reports a fingerprint of the board each turn
-        const seen = r.sums.get(m.ev.turn);
-        if (seen === undefined) r.sums.set(m.ev.turn, m.ev.h);
-        else if (seen !== m.ev.h) broadcast(r, {t: 'desync', turn: m.ev.turn});
-        if (r.sums.size > 400) r.sums.delete(r.sums.keys().next().value);
-        break;
-      }
-      if (r.log.length >= MAX_LOG) break;
-      const mid = Math.floor(+m.ev.mid) || 0;
-      if (mid && mid <= (r.mids[ws.cid] || 0)) break; // already have it (resent after a reconnect)
-      if (mid) r.mids[ws.cid] = mid;
-      const ev = {k: m.ev.k, s: seat, n: r.log.length, mid};
-      if (m.ev.k === 'cmd') ev.cmd = m.ev.cmd; else if (m.ev.k === 'dec') { ev.q = m.ev.q; ev.v = m.ev.v; } else break;
-      if (JSON.stringify(ev).length > 20000) break;
-      r.log.push(ev); r.dirty = true;
+      const e = m.ev;
+      if (!r.started || !e || typeof e !== 'object') break;
+      if (e.k === 'sum') { checkSums(r, seat, e); break; }
+      const mid = Math.floor(+e.mid) || 0, sid = clean(e.sid, 24);
+      if (seat < 0) { send(ws, {t: 'reject', mid}); break; }
+      if (mid && r.seen.has(evKey(seat, sid, mid))) break; // already in the log (sent again after a reconnect)
+      const ev = {k: e.k, s: seat, n: r.log.length, mid, sid};
+      if (e.k === 'cmd') ev.cmd = e.cmd; else if (e.k === 'dec') { ev.q = e.q; ev.v = e.v; } else break;
+      if (r.log.length >= MAX_LOG || JSON.stringify(ev).length > 64000) { send(ws, {t: 'reject', mid}); break; } // the sender rebuilds from the log
+      if (mid) r.seen.add(evKey(seat, sid, mid));
+      r.log.push(ev); touched(r);
       broadcast(r, {t: 'ev', ev});
       break;
     }
@@ -212,6 +226,27 @@ function handle(ws, raw) {
       r.chat.push(line); if (r.chat.length > 200) r.chat.shift();
       broadcast(r, {t: 'chat', line}); break;
     }
+  }
+}
+function sendLog(ws, r, from) {
+  send(ws, {t: 'hello', cfg: r.startCfg || startPayload(r), reset: from < 0, from, len: r.log.length, events: r.log.slice(from + 1), chat: r.chat.slice(-50)});
+}
+// Desync watchdog: at the start of every turn each browser reports a fingerprint of its game.
+// When they disagree, the browsers that differ from the majority (everyone, on a tie) rebuild from the log.
+function checkSums(r, seat, e) {
+  const turn = Math.floor(+e.turn), h = Number(e.h) >>> 0;
+  if (seat < 0 || !Number.isFinite(turn)) return;
+  let t = r.sums.get(turn);
+  if (!t) { t = new Map(); r.sums.set(turn, t); if (r.sums.size > 60) r.sums.delete(r.sums.keys().next().value); }
+  t.set(seat, h);
+  const votes = new Map();
+  for (const v of t.values()) votes.set(v, (votes.get(v) || 0) + 1);
+  if (votes.size < 2) return;
+  const top = Math.max(...votes.values()), lead = [...votes].filter(([, c]) => c === top), ok = lead.length === 1 ? lead[0][0] : null;
+  for (const [s, v] of t) {
+    if (ok !== null && v === ok) continue;
+    const w = r.clients.get(r.seats[s]?.cid);
+    if (w?.open) send(w, {t: 'desync', turn, ok});
   }
 }
 function startPayload(r) {
@@ -267,5 +302,5 @@ setInterval(() => { // keep connections honest and tidy up old rooms
 }, 25000);
 setInterval(() => { if ([...rooms.values()].some(r => r.dirty)) { rooms.forEach(r => { r.dirty = false; }); save(); } }, 30000);
 load();
-process.on('SIGTERM', () => { save(); process.exit(0); });
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { save(); process.exit(0); }); // Ctrl+C keeps the games too
 server.listen(PORT, () => console.log(`Hexland Settlers online on http://localhost:${PORT}`));
