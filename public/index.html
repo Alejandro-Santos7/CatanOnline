@@ -562,7 +562,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <div class="bank" id="bank" title="Cards left in the bank"></div>
     <div class="tools">
       <label for="speed">Speed</label>
-      <select id="speed"><option value="1.7">Slow</option><option value="1" selected>Normal</option><option value="0.5">Fast</option><option value="0.12">Turbo</option></select>
+      <select id="speed"><option value="2.6">Very slow</option><option value="1.7">Slow</option><option value="1" selected>Normal</option><option value="0.5">Fast</option><option value="0.12">Turbo</option></select>
       <button class="btn sm" id="bLog">Chronicle</button>
       <button class="btn sm" id="bMenu">Menu</button>
       <button class="btn sm" id="bFull" hidden aria-pressed="false">Fullscreen</button>
@@ -701,6 +701,10 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 <div class="modal" id="modal" hidden><div class="modal-box" id="modalBox" role="dialog" aria-modal="true"></div></div>
 
 <script>
+// ===== language: English or Spanish. Game state and network messages stay in English; only what people read changes. =====
+let LANG = (() => { try { const s = localStorage.getItem('catan.lang'); if (s === 'en' || s === 'es') return s; } catch { /* private mode */ } return /^es\b/i.test(navigator.language || '') ? 'es' : 'en'; })();
+const L = (en, es) => LANG === 'es' ? es : en; // new text gives both versions at the call site
+const store = {get: k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set: (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch { /* private mode */ } }}; // per-device settings
 // ===== constants =====
 const RES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
 let KINDS = RES; // card kinds in play: resources, plus commodities in Cities & Knights
@@ -1174,14 +1178,14 @@ async function roll() {
   G.alch = null;
   G.dice = [a, b]; G.ev = ev; G.rollN++; G.hotOn = false;
   log(`${pn(G.cur)} rolled <b>${n}</b>${ev ? ` · event: ${ev === 'ship' ? 'barbarian ship' : `${TRACK_NAME[ev]} gate`}` : ''}`); render();
-  await sleep(1000);
+  await sleep(1300); // let the dice land before anything is paid
   if (ev) { await resolveEvent(ev, b); if (G.phase === 'over') return; }
   if (card?.ev && card.ev !== 'robber') { banner(EVENT_NAME[card.ev], 'sm'); log(`Event card: <b>${EVENT_NAME[card.ev]}</b>`); await resolveEventCard(card.ev); render(); }
   G.hotOn = true;
-  if (n === 7) { banner(G.barbOn ? 'Seven! The robber strikes' : 'Seven! Big hands discard', 'red'); await sleep(500); await seven(); } else await produce(n);
+  if (n === 7) { banner(G.barbOn ? 'Seven! The robber strikes' : 'Seven! Big hands discard', 'red'); await sleep(900); await seven(); } else await produce(n);
   G.epidemic = false;
   render();
-  await sleep(650);
+  await sleep(1100); // the cards are still flying to their owners
   G.phase = 'main';
 }
 async function seven() {
@@ -1193,6 +1197,7 @@ async function seven() {
     flyRes(seatPt(i), bankPt(), d);
     KINDS.forEach(r => { p.res[r] -= d[r]; G.bank[r] += d[r]; });
     log(`${pn(i)} discarded ${resList(d)}`); render();
+    if (p.ai) await sleep(500);
   }
   if (scen().seven) await scen().seven(G.cur);
   else if (G.barbOn) await moveRobber(G.cur); // C&K: the robber stays put until the first barbarian attack
@@ -1202,6 +1207,7 @@ async function moveRobber(i) {
   const p = G.players[i], sea = G.cfg.sea;
   const opts = robberOpts(i);
   if (!opts.length) { G.robber = G.hex.findIndex(t => t.res === 'desert'); if (G.robber < 0) G.robber = null; log('The friendly robber has nowhere to go'); render(); return; }
+  if (p.ai) await sleep(700);
   const h = p.ai ? aiRobberHex(i) : await pick('hex', opts, sea ? 'Move the robber (click land) or the pirate (click sea)' : 'Move the robber: click any other tile', false);
   const pirate = G.hex[h].res === 'sea';
   if (pirate) G.pirate = h; else G.robber = h;
@@ -1211,7 +1217,7 @@ async function moveRobber(i) {
   const victims = [...new Set(owners.filter(j => j != null && j !== i && sum(G.players[j].res) > 0 && !(G.cfg.friendly && vp(j, false) <= 2)))];
   if (!victims.length) return;
   if (p.ai) {
-    await sleep(500);
+    await sleep(900);
     return steal(i, victims.length === 1 ? victims[0] : best(victims, j => vp(j, false) * 10 + sum(G.players[j].res)));
   }
   const {j, r} = await askSteal(victims);
@@ -1246,7 +1252,7 @@ async function resolveEvent(ev, red) {
     log(`The barbarian ship sails closer (${G.barb}/7)`);
     banner(G.barb >= 7 ? 'The barbarians attack!' : `Barbarians ${G.barb}/7`, G.barb >= 7 ? 'red' : 'sm');
     render();
-    if (G.barb >= 7) { await sleep(900); await barbarianAttack(); }
+    if (G.barb >= 7) { await sleep(1300); await barbarianAttack(); }
     return;
   }
   // a city gate: everyone whose improvement in that colour covers the red die draws a progress card, in turn order
@@ -1435,7 +1441,7 @@ async function freeRoads(i, label) { // Road Building (dev or progress card): 2 
     if (!opts.length) break;
     const e = p.ai ? aiRoadPick(i) : await pick('edge', opts, `${label}: place free ${G.cfg.sea ? 'road or ship' : 'road'} ${n} of 2`, false);
     if (p.roads && canRoad(e, i)) buildRoad(i, e, true); else buildShip(i, e, true);
-    render(); await sleep(300);
+    render(); await sleep(p.ai ? 750 : 300);
   }
 }
 function refreshToken(h) { const g = $(`#tile${h} .tokwrap`); if (g) g.outerHTML = tokenSVG(G.hex[h].num); }
@@ -1445,7 +1451,7 @@ async function playProgress(i, c) {
   fly(seatPt(i), svgPt(0, 0), miniProg(PDECK[t]));
   banner(`${p.name}: ${progName(t)}`, 'sm');
   log(`${pn(i)} played <b>${progName(t)}</b>`); render();
-  await sleep(450);
+  await sleep(800);
   switch (t) {
     case 'alchemist': G.alch = ai ? aiAlchemy(i) : await askDice(); log(`${pn(i)} set the dice to ${G.alch[0]} and a red ${G.alch[1]}`); break;
     case 'crane': G.crane = i; break;
@@ -1572,7 +1578,7 @@ async function playDev(i, t) {
   fly(seatPt(i), svgPt(0, 0), miniDev(t));
   banner(`${p.name}: ${DEV_NAME[t]}`, 'sm');
   log(`${pn(i)} played <b>${DEV_NAME[t]}</b>`); render();
-  await sleep(500);
+  await sleep(800);
   if (scen().dev?.[t]) await scen().dev[t](i);
   else if (t === 'knight') { p.knights++; updateArmy(i); await moveRobber(i); }
   else if (t === 'road') await freeRoads(i, 'Road Building');
@@ -1985,6 +1991,7 @@ async function moveKnightsBA(i) {
     if (aiKnightTarget(i, to[0]) <= aiKnightTarget(i, e) + 0.2 && !castleEdges().includes(e)) continue;
     if (to[1] > 3) pay(i, {grain: 1});
     delete G.bk[e]; G.bk[to[0]] = i;
+    render(); await sleep(700);
   }
 }
 SC.barb = {
@@ -2104,6 +2111,7 @@ async function moveWagon(i) {
   if (paths[v][0] > base) { pay(i, {grain: 1}); G.boosted = true; }
   payTolls(i, paths, v); p.wagon = v; G.wagonMoves++;
   arrive(i); render();
+  if (p.ai) await sleep(700);
 }
 async function moveTBarb(i, why) { // a 7 or a Knight: move a barbarian; landing on a road robs its owner
   const p = G.players[i], opts = EDGE.map((_, e) => e).filter(e => EDGE[e].land && !G.tbarb.includes(e));
@@ -2262,7 +2270,7 @@ async function epSetup() { // free set-up: harbor settlements, then settlements 
   for (let n = 0; n < 2 * N; n++) {
     const i = (s + (n < N ? n : 2 * N - 1 - n)) % N, p = G.players[i], harbor = n < N;
     G.cur = i; render();
-    if (p.ai) await sleep(500);
+    if (p.ai) await sleep(900);
     const opts = settleSpots(i, true).filter(v => VERT[v].island === 0 && (!harbor || VERT[v].hexes.some(h => !HEX[h].land)));
     const v = p.ai ? best(opts, v => vScore(v, i) + RNG() * NOISE[diffOf(i)] + (harbor ? VERT[v].hexes.filter(h => !HEX[h].land).length : 0)) : await pick('vert', opts, harbor ? 'Place your harbor settlement on a coastal corner' : 'Place your settlement', false);
     G.bld[v] = {p: i, t: 1}; if (harbor) { G.bld[v].h = true; p.hs--; G.basin[v] = []; } else p.settlements--;
@@ -2272,7 +2280,7 @@ async function epSetup() { // free set-up: harbor settlements, then settlements 
   for (let n = 0; n < N; n++) {
     const i = (s + N - 1 + n) % N, p = G.players[i], home = G.bld.findIndex(b => b?.p === i && !b.h);
     G.cur = i; render();
-    if (p.ai) await sleep(400);
+    if (p.ai) await sleep(700);
     const re = roadSpots(i, home), e = p.ai ? aiSetupRoad(i, home) : await pick('edge', re, 'Place a road next to your settlement', false);
     buildRoad(i, e, true);
     const se = shipBuildSpots(i);
@@ -2487,7 +2495,7 @@ async function epAiMove(i) {
     const to = best(opts, e => -far[e] * 10 - reach[e].d - (reach[e].tribute ? 5 : 0));
     if (far[to] >= far[s.e]) continue;
     await sail(i, s, to, reach[to]);
-    await sleep(300);
+    await sleep(700);
   }
 }
 const EP_BTN = [
@@ -2589,7 +2597,7 @@ async function setup() {
   for (let n = 0; n < 2 * N; n++) { // snake order: 1-2-...-N-N-...-2-1
     const i = (s + (n < N ? n : 2 * N - 1 - n)) % N, p = G.players[i], second = n >= N;
     G.cur = i; render();
-    if (p.ai) await sleep(550);
+    if (p.ai) await sleep(900);
     const v = p.ai ? aiSetupVertex(i) : await pick('vert', startSpots(i), `Place your ${second ? 'second' : 'first'} settlement on a glowing corner`, false);
     buildSettlement(i, v, true);
     if ((G.ck || scen().city2) && second) { G.bld[v].t = 2; p.settlements++; p.cities--; log(`${pn(i)} raised it straight to a city`); }
@@ -2599,7 +2607,7 @@ async function setup() {
       log(`${pn(i)} collected starting resources ${resList(got) || '(none)'}`);
     }
     render();
-    if (p.ai) await sleep(350);
+    if (p.ai) await sleep(700);
     const opts = [...roadSpots(i, v), ...(G.cfg.sea ? shipSpots(i, v).filter(e => !EDGE[e].land) : [])];
     const e = p.ai ? aiSetupRoad(i, v) : await pick('edge', opts, G.cfg.sea ? 'Now place a road, or a ship on open water, touching that settlement' : 'Now place a road touching that settlement', false);
     if (EDGE[e].land) buildRoad(i, e, true); else buildShip(i, e, true);
@@ -3039,18 +3047,18 @@ async function aiMaybeDev(i) {
   return true;
 }
 async function aiTurn(i, paired) {
-  render(); await sleep(600);
+  render(); await sleep(1000);
   if (!paired && G.phase === 'roll') {
-    if (wantsKnight(i)) { await playDev(i, 'knight'); if (checkWin()) return; render(); await sleep(300); }
+    if (wantsKnight(i)) { await playDev(i, 'knight'); if (checkWin()) return; render(); await sleep(700); }
     const alch = G.ck && diffOf(i) !== 'easy' && G.players[i].prog.find(c => c.t === 'alchemist');
-    if (alch) { await playProgress(i, alch); await sleep(300); }
+    if (alch) { await playProgress(i, alch); await sleep(700); }
     await roll(); render();
     if (checkWin()) return;
   }
   const p = G.players[i];
   let offers = [1, 1, 1, 2, 2][G.cfg.trade];
   for (let guard = 0; guard < 40; guard++) {
-    await sleep(650);
+    await sleep(1000); // one AI action at a time, with time to see each one
     if (!G.devPlayed && await aiMaybeDev(i)) { render(); if (checkWin()) return; continue; }
     if (scen().ai && await scen().ai(i)) { render(); if (checkWin()) return; continue; }
     if (G.ck && await aiCK(i)) { render(); if (checkWin()) return; continue; }
@@ -3941,12 +3949,13 @@ document.addEventListener('click', e => {
   else if (b.dataset.sc) { const a = (scen().buttons || []).find(x => x.id === b.dataset.sc); if (a && myTurn('main') && a.can(HUMAN)) sendCmd({c: 'sc', id: a.id}); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { resolvePick(null); drawerOpen = false; $('#drawer').classList.remove('open'); } });
-$('#speed').addEventListener('change', e => { SPEED = +e.target.value; document.documentElement.style.setProperty('--a', A()); });
+$('#speed').addEventListener('change', e => { SPEED = +e.target.value; store.set('catan.speed', String(SPEED)); document.documentElement.style.setProperty('--a', A()); });
+{ const sp = +store.get('catan.speed'); if ([...$('#speed').options].some(o => +o.value === sp)) { SPEED = sp; $('#speed').value = String(sp); } } // the last speed picked on this device
 addEventListener('resize', () => { if (G && !FAST) renderHand(); });
 
 function start(cfg) {
   hideMenu(); $('#desync')?.remove();
-  if (cfg.tutorial) { SPEED = 1.7; $('#speed').value = '1.7'; }
+  if (cfg.tutorial && SPEED < 1.7) { SPEED = 1.7; $('#speed').value = '1.7'; } // tutorials start slow, or slower if you chose that
   newGame(cfg, false); SEL.clear(); RUNNING = true;
   document.documentElement.style.setProperty('--a', A());
   $('#hand').innerHTML = ''; shownRoll = -1; tickN = -1;
@@ -4046,7 +4055,6 @@ async function selftest(perConfig = 3) {
 // ===== online play =====
 const ON = {ws: null, cid: '', seat: -1, code: '', lobby: null, want: false, retry: 0, pending: null, chat: [], presence: [], mid: 0, outbox: new Map(), unread: 0, name: ''};
 try { ON.cid = localStorage.getItem('catan.cid') || ''; if (!ON.cid) { ON.cid = (crypto.randomUUID ? crypto.randomUUID() : 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36)); localStorage.setItem('catan.cid', ON.cid); } } catch { ON.cid = 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
-const store = {get: k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set: (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch { /* private mode */ } }};
 const oErr = msg => { $('#oErr').textContent = msg || ''; };
 const cfgPayload = () => ({n: CFG.n, trade: CFG.trade, sea: !!CFG.sea, ck: !!CFG.ck, scen: CFG.scen || null, friendly: !!CFG.friendly, events: !!CFG.events, harbormaster: !!CFG.harbormaster});
 function wsUrl() {
