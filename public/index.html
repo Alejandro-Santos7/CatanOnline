@@ -271,11 +271,19 @@ select option{background:#0b2a3d}
 .hcard.devc.playable .front{box-shadow:0 0 20px rgba(196,160,255,.95),0 8px 18px rgba(0,0,0,.45)}
 .hcard.devc.fresh{filter:saturate(.5) brightness(.8)}
 .hcard.drag{transition:none;z-index:400!important;cursor:grabbing;--r:0deg!important;--lift:0px!important}
-.hcard.leave{opacity:0;--lift:130px!important;pointer-events:none}
-.hcard.enter>.card{animation:cardIn calc(.6s * var(--a)) cubic-bezier(.2,.9,.3,1.2) calc(.5s * var(--a)) backwards}
+.hcard.drag.follow{transition:transform calc(.22s * var(--a)) cubic-bezier(.2,.8,.3,1);z-index:399!important}
+.hcard.drag .face{box-shadow:0 0 0 3px var(--gold),0 18px 30px rgba(0,0,0,.55)}
+.hcard.drag:not(.follow)>.card{transform:scale(1.08) rotate(-3deg)}
+.dragn{position:absolute;top:-12px;right:-12px;z-index:5;min-width:30px;height:30px;padding:0 8px;border-radius:999px;display:grid;place-items:center;background:var(--gold);color:#3a2605;font:700 15px Fredoka,sans-serif;box-shadow:0 3px 8px rgba(0,0,0,.5);animation:pop .35s;pointer-events:none}
+.hcard.leave{opacity:0;--lift:170px!important;scale:.55;pointer-events:none;transition:transform calc(.55s * var(--a)) cubic-bezier(.5,-.3,.6,1),opacity calc(.5s * var(--a)) ease-in,scale calc(.55s * var(--a)) ease-in}
+.hcard.leave>.card{transform:rotateY(180deg) rotate(14deg);transition:transform calc(.5s * var(--a)) ease-in}
+.hcard.enter>.card{animation:cardIn calc(.8s * var(--a)) cubic-bezier(.2,.9,.3,1.15) calc((.45s + var(--k,0) * .09s) * var(--a)) backwards}
+.hcard.enter .face.front{animation:cardGlow calc(1.4s * var(--a)) calc((.75s + var(--k,0) * .09s) * var(--a)) ease-out backwards}
 .hcard.devc.enter>.card{animation-name:flipIn;animation-duration:calc(1s * var(--a))}
+.hcard.sel{transition:transform calc(.45s * var(--a)) cubic-bezier(.2,1.6,.4,1),opacity .35s,filter .25s}
 .hcard.shake>.card{animation:shake .45s}
-@keyframes cardIn{from{transform:translateY(-170px) scale(.45) rotate(-18deg);opacity:0}}
+@keyframes cardIn{0%{transform:translateY(-200px) scale(.4) rotateY(180deg) rotate(-22deg);opacity:0}40%{opacity:1}60%{transform:translateY(-34px) scale(1.12) rotateY(0deg) rotate(5deg)}82%{transform:translateY(5px) scale(.97) rotate(-1deg)}100%{transform:none}}
+@keyframes cardGlow{0%{box-shadow:0 0 0 3px #fff3c0,0 0 34px 10px rgba(255,225,130,.95),0 8px 18px rgba(0,0,0,.45)}100%{box-shadow:0 8px 18px rgba(0,0,0,.45)}}
 @keyframes flipIn{0%{transform:translateY(-170px) scale(.5) rotateY(180deg);opacity:0}45%{transform:translateY(-60px) scale(1.12) rotateY(180deg);opacity:1}100%{transform:none}}
 @keyframes shake{0%,100%{transform:none}20%{transform:translateX(-9px) rotate(-4deg)}40%{transform:translateX(8px) rotate(3deg)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
 .mcard{width:36px;height:50px;border-radius:6px;display:grid;place-items:center;color:#fff8e6;border:2px solid #fff4d8;background:linear-gradient(160deg,var(--c1),var(--c2));box-shadow:0 6px 14px rgba(0,0,0,.5);position:relative}
@@ -1638,7 +1646,7 @@ function revealHTML(i, kind, t, mode) {
   const esc = x => String(x).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c]);
   const foot = mode === 'me' ? L('Tap anywhere to continue', 'Toca la pantalla para continuar') : mode === 'ai' ? L('The AI goes on in a moment…', 'La IA sigue en un momento…') : L(`Waiting for ${p.name} to continue…`, `Esperando a que ${p.name} continúe…`);
   return `<div class="rv-rays"></div><div class="rv-box">
-    <div class="rv-who">${avatarHTML(i)}<span><b>${esc(p.name)}</b> ${L('plays a card', 'juega una carta')}</span></div>
+    <div class="rv-who">${avatarHTML(i)}<span>${p.name === 'You' ? L('You play a card', 'Juegas una carta') : `<b>${esc(p.name)}</b> ${L('plays a card', 'juega una carta')}`}</span></div>
     <div class="rv-flip"><div class="rv-card ${kind} ${deck} ${t}"><div class="rv-art"><svg><use href="#i-${icon}"/></svg></div><div class="rv-ribbon">${esc(name)}</div></div></div>
     <h2 class="rv-name">${esc(name)}</h2><div class="rv-type">${type}</div><p class="rv-text">${esc(text)}</p>
     <div class="rv-foot${mode === 'me' ? ' tap' : ''}">${esc(foot)}</div>${mode === 'ai' ? '<div class="rv-timer"><i></i></div>' : ''}</div>`;
@@ -3724,12 +3732,14 @@ function renderHand() {
   const cw = parseFloat(getComputedStyle(box).getPropertyValue('--cw')) || 84;
   const gap = sum(me.res) && (me.dev.length || me.prog.length) ? 0.7 : 0, span = Math.max(0, items.length - 1 + gap);
   const step = span ? Math.min(cw * 0.8, (box.clientWidth - cw * 1.7) / span) : 0, tilt = Math.min(4, 44 / Math.max(1, items.length));
+  let fresh = 0;
   items.forEach((it, k) => {
     let el = live.get(it.key);
     if (el) live.delete(it.key);
     else {
       el = document.createElement('button');
       el.className = 'hcard enter' + (it.c ? ' devc progc' : it.d ? ' devc' : '');
+      el.style.setProperty('--k', Math.min(fresh++, 8)); // several new cards land one after another
       el.dataset.key = it.key;
       el.setAttribute('aria-label', it.c ? `${progName(it.c.t)} progress card` : it.d ? `${DEV_NAME[it.d.t]} card` : `${RNAME[it.r]} card`);
       el.innerHTML = it.c ? progHTML(it.c) : it.d ? devHTML(it.d.t, it.d.id) : cardHTML(it.r);
@@ -3745,7 +3755,7 @@ function renderHand() {
     if (it.c) el.classList.toggle('playable', canPlayProg(it.c));
     else if (it.d) { el.classList.toggle('playable', canPlayDev(it.d.t)); el.classList.toggle('fresh', it.d.t !== 'vp' && it.d.turn === G.turn); }
   });
-  live.forEach(el => { el.classList.add('leave'); setTimeout(() => el.remove(), 450); });
+  live.forEach(el => { el.classList.add('leave'); setTimeout(() => el.remove(), 600); });
   $('#handEmpty').hidden = items.length > 0;
   const sb = $('#selbar');
   sb.hidden = !G.sel;
@@ -3824,8 +3834,9 @@ function progBlock(c) {
   if (!progUsable(HUMAN, c.t)) return `${progName(c.t)} has no effect right now`;
   return 'Finish the current action first';
 }
-function dropHint(el) {
+function dropHint(el, n = 1) {
   const key = el.dataset.key;
+  if (n > 1) return myTurn('main') ? `Release to trade these ${n} cards` : '';
   if (key.startsWith('prog')) { const c = progOf(key); return c && canPlayProg(c) ? `Release to play ${progName(c.t)}` : ''; }
   if (key.startsWith('dev')) { const d = G.players[HUMAN].dev.find(x => 'dev' + x.id === key); return d && canPlayDev(d.t) ? `Release to play ${DEV_NAME[d.t]}` : ''; }
   if (G.sel) return 'Release to mark for discard';
@@ -3857,21 +3868,29 @@ function cardTap(el, dropped) {
 $('#hand').addEventListener('pointerdown', e => {
   const el = e.target.closest('.hcard');
   if (!el || el.classList.contains('leave') || e.button > 0) return;
-  const x0 = e.clientX, y0 = e.clientY, top = $('#hand').getBoundingClientRect().top, cell = $('#cell'), hint = dropHint(el);
-  let moved = false;
+  const x0 = e.clientX, y0 = e.clientY, top = $('#hand').getBoundingClientRect().top, cell = $('#cell');
+  // dragging a resource while others are picked carries the whole picked set, gathered in a stack under the finger
+  const isRes = k => !k.startsWith('dev') && !k.startsWith('prog');
+  const group = !G.sel && isRes(el.dataset.key) && [...SEL].some(k => k !== el.dataset.key && isRes(k))
+    ? [...$('#hand').querySelectorAll('.hcard:not(.leave)')].filter(c => c !== el && SEL.has(c.dataset.key) && isRes(c.dataset.key)) : [];
+  const hint = dropHint(el, group.length + 1), mid = r => ({x: r.left + r.width / 2, y: r.top + r.height / 2});
+  const c0 = mid(el.getBoundingClientRect()), offs = group.map((c, k) => { const m = mid(c.getBoundingClientRect()); return {x: c0.x - m.x + (k + 1) * 9, y: c0.y - m.y - (k + 1) * 4}; });
+  let moved = false, badge = null;
   el.setPointerCapture(e.pointerId);
   const move = ev => {
     const dx = ev.clientX - x0, dy = ev.clientY - y0;
     if (!moved && Math.hypot(dx, dy) < 7) return;
+    if (!moved && group.length) { badge = document.createElement('span'); badge.className = 'dragn'; badge.textContent = group.length + 1; el.appendChild(badge); }
     moved = true; el.classList.add('drag');
     el.style.setProperty('--dx', dx + 'px'); el.style.setProperty('--dy', dy + 'px');
+    group.forEach((c, k) => { c.classList.add('drag', 'follow'); c.style.setProperty('--dx', dx + offs[k].x + 'px'); c.style.setProperty('--dy', dy + offs[k].y + 'px'); });
     const over = !!hint && ev.clientY < top - 30;
     cell.classList.toggle('drophint', over); if (over) cell.dataset.hint = hint;
   };
   const up = ev => {
     el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
-    cell.classList.remove('drophint');
-    el.classList.remove('drag'); el.style.removeProperty('--dx'); el.style.removeProperty('--dy');
+    cell.classList.remove('drophint'); badge?.remove();
+    for (const c of [el, ...group]) { c.classList.remove('drag', 'follow'); c.style.removeProperty('--dx'); c.style.removeProperty('--dy'); }
     if (!moved) cardTap(el); else if (ev.type === 'pointerup' && ev.clientY < top - 30) cardTap(el, true);
   };
   el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
