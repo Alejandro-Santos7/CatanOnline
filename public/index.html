@@ -2117,7 +2117,8 @@ const SCEN_INFO = {
   ep: {box: 'ep', name: 'Explorers & Pirates', vp: 17, blurb: 'The full campaign: pirate lairs, fish and spices all at once.'},
 };
 const SC = {}; // scenario rule hooks, filled in by each scenario module below
-const scen = () => SC[G?.scen] || {};
+const NO_SCEN = {}; // one shared empty hook set: scen() is called thousands of times per turn
+const scen = () => SC[G?.scen] || NO_SCEN;
 const PDECK = {}; // card key -> deck
 Object.entries(PROG).forEach(([d, cards]) => Object.keys(cards).forEach(t => { PDECK[t] = d; }));
 const progName = t => PROG[PDECK[t]][t][0], progText = t => PROG[PDECK[t]][t][2];
@@ -2206,7 +2207,7 @@ const d6 = () => 1 + rand(6);
 const f = n => +n.toFixed(1);
 const sum = o => Object.values(o).reduce((t, n) => t + (n || 0), 0);
 const sumR = o => RES.reduce((t, r) => t + (o[r] || 0), 0); // resources only
-const emptyRes = () => Object.fromEntries(KINDS.map(k => [k, 0]));
+const emptyRes = () => { const o = {}; for (const k of KINDS) o[k] = 0; return o; };
 const resList = o => KINDS.filter(r => o[r]).map(r => `${o[r]}<i class="rchip ${r}"></i>`).join(' ');
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function best(arr, fn) { let b = arr[0], bs = -Infinity; for (const x of arr) { const s = fn(x); if (s > bs) { bs = s; b = x; } } return b; }
@@ -2377,8 +2378,9 @@ function vp(i, hidden = true) {
 
 // ===== animation helpers (no-ops in fast/self-test mode) =====
 const A = () => FAST || RM ? 0 : Math.max(0.3, SPEED);
-function center(el) { if (!el) return {x: innerWidth / 2, y: innerHeight / 2}; const r = el.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; }
-function svgPt(x, y) { const m = $('#board').getScreenCTM(); return m ? {x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f} : center(null); }
+const ORIGIN = {x: 0, y: 0};
+function center(el) { if (!A()) return ORIGIN; if (!el) return {x: innerWidth / 2, y: innerHeight / 2}; const r = el.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; }
+function svgPt(x, y) { if (!A()) return ORIGIN; const m = $('#board').getScreenCTM(); return m ? {x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f} : center(null); }
 const seatPt = i => center(i === HUMAN ? $('#hand') : $(`#seat${i} .avatar`));
 const bankPt = () => center($('#bank'));
 const deckPt = () => center($('#deck'));
@@ -2397,7 +2399,7 @@ function fly(from, to, html, delay = 0) {
     {transform: `translate(${to.x}px,${to.y}px) scale(.8) rotate(0deg)`, opacity: .15},
   ], {duration: 720 * a, delay: delay * a, easing: 'cubic-bezier(.35,.1,.25,1)', fill: 'both'}).onfinish = () => el.remove();
 }
-function flyRes(from, to, o, faceUp = true) { let k = 0; KINDS.forEach(r => { for (let n = 0; n < (o[r] || 0); n++) fly(from, to, mini(faceUp && r), 85 * k++); }); }
+function flyRes(from, to, o, faceUp = true) { if (!A()) return; let k = 0; KINDS.forEach(r => { for (let n = 0; n < (o[r] || 0); n++) fly(from, to, mini(faceUp && r), 85 * k++); }); }
 function banner(text, cls = '') {
   if (!A()) return;
   const el = document.createElement('div');
@@ -2421,7 +2423,8 @@ function canRoad(e, i, from) {
   return [E.a, E.b].some(v => { const b = G.bld[v]; return b ? b.p === i : !foeKnight(v, i) && VERT[v].edges.some(x => x !== e && G.road[x] === i); });
 }
 const foeKnight = (v, i) => G.kn[v] && G.kn[v].p !== i; // an opponent's knight blocks roads through its corner
-const pirateEdges = () => new Set(G.pirate === null ? [] : HEX[G.pirate].e);
+let peHex = 0, peSet = new Set(); // the pirate's edges only change when it moves (hex objects are rebuilt with the board)
+const pirateEdges = () => { const h = G.pirate === null ? null : HEX[G.pirate]; if (h !== peHex) { peHex = h; peSet = new Set(h ? h.e : []); } return peSet; }; 
 // Ships go on any path touching the sea; they join roads only through a settlement or city.
 function canShip(e, i, from) {
   const E = EDGE[e];
@@ -2431,18 +2434,24 @@ function canShip(e, i, from) {
 }
 // Starting corners must leave room for the first road (some scenarios block roads near special tiles).
 const startSpots = i => { const all = settleSpots(i, true), ok = all.filter(v => roadSpots(i, v).length || (G.cfg.sea && shipSpots(i, v).some(e => !EDGE[e].land))); return ok.length ? ok : all; };
-const settleSpots = (i, setup) => VERT.map((_, v) => v).filter(v => canSettle(v, i, setup));
-const roadSpots = (i, from) => EDGE.map((_, e) => e).filter(e => canRoad(e, i, from));
-const shipSpots = (i, from) => EDGE.map((_, e) => e).filter(e => canShip(e, i, from));
+const idxWhere = (n, ok) => { const out = []; for (let k = 0; k < n; k++) if (ok(k)) out.push(k); return out; };
+const anyIdx = (n, ok) => { for (let k = 0; k < n; k++) if (ok(k)) return true; return false; };
+const settleSpots = (i, setup) => idxWhere(VERT.length, v => canSettle(v, i, setup));
+const roadSpots = (i, from) => idxWhere(EDGE.length, e => canRoad(e, i, from));
+const shipSpots = (i, from) => idxWhere(EDGE.length, e => canShip(e, i, from));
+const anySettle = (i, setup) => anyIdx(VERT.length, v => canSettle(v, i, setup));
+const anyRoad = (i, from) => anyIdx(EDGE.length, e => canRoad(e, i, from));
+const anyShip = (i, from) => anyIdx(EDGE.length, e => canShip(e, i, from));
 // A ship can move if it sits at an open end of a route, wasn't built this turn and isn't next to the pirate.
 function movableShips(i) {
   if (!G.cfg.sea || G.movedShip) return [];
   const pe = pirateEdges();
-  return EDGE.map((_, e) => e).filter(e => G.ship[e] === i && G.shipTurn[e] !== G.turn && !pe.has(e) &&
+  return idxWhere(EDGE.length, e => G.ship[e] === i && G.shipTurn[e] !== G.turn && !pe.has(e) &&
     [EDGE[e].a, EDGE[e].b].some(v => !(G.bld[v] && G.bld[v].p === i) && !VERT[v].edges.some(x => x !== e && G.ship[x] === i)));
 }
 function shipTargets(i, from) { G.ship[from] = null; const t = shipSpots(i).filter(e => e !== from); G.ship[from] = i; return t; }
-const citySpots = i => VERT.map((_, v) => v).filter(v => G.bld[v] && G.bld[v].p === i && G.bld[v].t === 1);
+const citySpots = i => idxWhere(VERT.length, v => G.bld[v] && G.bld[v].p === i && G.bld[v].t === 1);
+const anyCity = i => anyIdx(VERT.length, v => G.bld[v] && G.bld[v].p === i && G.bld[v].t === 1);
 const canPay = (i, c) => KINDS.every(r => G.players[i].res[r] >= (c[r] || 0));
 const missing = (i, c) => KINDS.reduce((t, r) => t + Math.max(0, (c[r] || 0) - G.players[i].res[r]), 0);
 function pay(i, c) { KINDS.forEach(r => { const n = c[r] || 0; G.players[i].res[r] -= n; G.bank[r] += n; }); }
@@ -2450,11 +2459,11 @@ function take(i, r, n) { n = Math.min(n, G.bank[r]); G.bank[r] -= n; G.players[i
 function can(i, what) {
   const p = G.players[i];
   if (G.moving && G.cur === i) return false; // Explorers & Pirates: after sailing, no more building this turn
-  if (what === 'road') return p.roads > 0 && canPay(i, COST.road) && roadSpots(i).length > 0;
-  if (what === 'settlement') return p.settlements > 0 && canPay(i, COST.settlement) && settleSpots(i).length > 0;
-  if (what === 'city') return p.cities > 0 && canPay(i, COST.city) && citySpots(i).length > 0;
+  if (what === 'road') return p.roads > 0 && canPay(i, COST.road) && anyRoad(i);
+  if (what === 'settlement') return p.settlements > 0 && canPay(i, COST.settlement) && anySettle(i);
+  if (what === 'city') return p.cities > 0 && canPay(i, COST.city) && anyCity(i);
   if (what === 'dev') return G.deck.length > 0 && canPay(i, COST.dev);
-  if (what === 'ship') return p.ships > 0 && canPay(i, COST.ship) && shipSpots(i).length > 0;
+  if (what === 'ship') return p.ships > 0 && canPay(i, COST.ship) && anyShip(i);
   if (what === 'move') return movableShips(i).some(e => shipTargets(i, e).length);
   if (what === 'wall') return G.ck && p.walls < 3 && canPay(i, COST.wall) && wallSpots(i).length > 0;
   if (what === 'knights') return G.ck && Object.values(canKnight).some(fn => fn(i));
@@ -2693,9 +2702,9 @@ function steal(i, j, r) {
 
 // ===== Cities & Knights: barbarians, progress cards, knights, walls, improvements =====
 const metroAt = v => TRACKS.find(t => G.metro[t]?.v === v);
-const citiesOf = i => G.bld.map((b, v) => b && b.p === i && b.t === 2 ? v : -1).filter(v => v >= 0);
+const citiesOf = i => idxWhere(G.bld.length, v => { const b = G.bld[v]; return b && b.p === i && b.t === 2; });
 const freeCities = i => citiesOf(i).filter(v => !metroAt(v));
-const myKnights = i => Object.keys(G.kn).map(Number).filter(v => G.kn[v].p === i);
+const myKnights = i => { const out = []; for (const v in G.kn) if (G.kn[v].p === i) out.push(+v); return out; };
 const knightStrength = (i, activeOnly) => myKnights(i).reduce((s, v) => s + (!activeOnly || G.kn[v].active ? G.kn[v].lvl : 0), 0);
 const knightCount = (i, lvl) => myKnights(i).filter(v => G.kn[v].lvl === lvl).length;
 const KNIGHT_NAME = ['', 'basic', 'strong', 'mighty'];
@@ -3693,7 +3702,7 @@ const LARGE = ['settler', 'fish'], missionVP = s => s >= 6 ? 3 : s >= 3 ? 2 : s 
 const hasRoom = (arr, item) => LARGE.includes(item) ? arr.length === 0 : arr.length < 2 && !arr.some(x => LARGE.includes(x)); // 1 large or 2 small pieces
 const touchesHidden = hexes => hexes.some(h => G.hid.has(h));
 const blockedTile = (h, i) => G.hid.has(h) || G.lair[h] && !G.lair[h].captured || G.hex[h].res === 'spice' && !G.spice[h].crews.includes(i);
-const harborsOf = i => G.bld.map((b, v) => b && b.p === i && b.h ? v : -1).filter(v => v >= 0);
+const harborsOf = i => idxWhere(G.bld.length, v => { const b = G.bld[v]; return b && b.p === i && b.h; });
 const epShipsOf = i => G.eps.filter(s => s.p === i);
 const shipsOn = e => G.eps.filter(s => s.e === e).length;
 function epContents(sc, area) {
@@ -3841,7 +3850,7 @@ function epScenario(sc) {
 // ===== Explorers & Pirates, part 2: sailing, pirates, lairs, fish, spices =====
 const seaRoute = e => EDGE[e].sea;
 const routeFog = e => touchesHidden(VERT[EDGE[e].a].hexes) || touchesHidden(VERT[EDGE[e].b].hexes); // a ship here discovers
-const routeNbrs = e => [...new Set([EDGE[e].a, EDGE[e].b].flatMap(v => VERT[v].edges))].filter(x => x !== e && seaRoute(x));
+const routeNbrs = e => EDGE[e].rn ??= [...new Set([EDGE[e].a, EDGE[e].b].flatMap(v => VERT[v].edges))].filter(x => x !== e && seaRoute(x)); // geometry: cached on the edge, which is rebuilt with the board
 const pirateRoute = (e, i) => G.epPirate && G.epPirate.p !== i && HEX[G.epPirate.h].e.includes(e);
 const shipMP = (i, s) => 4 + G.players[i].friend.filter(a => a === 'swift').length + (s.boost ? 2 : 0);
 function shipReach(i, s, mp = shipMP(i, s)) { // routes reachable this turn; entering fog ends the move; pirate waters need tribute
@@ -3849,8 +3858,8 @@ function shipReach(i, s, mp = shipMP(i, s)) { // routes reachable this turn; ent
   for (const tribute of [false, true]) {
     if (tribute && !s.paid && p.gold < 1) break;
     const dist = {[s.e]: 0}, q = [s.e];
-    while (q.length) {
-      const e = q.shift();
+    for (let qi = 0; qi < q.length; qi++) {
+      const e = q[qi];
       if (e !== s.e && routeFog(e)) continue;
       for (const x of routeNbrs(e)) if (dist[x] === undefined && dist[e] + 1 <= mp && (tribute || s.paid || !pirateRoute(x, i) && !pirateRoute(e, i))) { dist[x] = dist[e] + 1; q.push(x); }
     }
@@ -3861,7 +3870,7 @@ function shipReach(i, s, mp = shipMP(i, s)) { // routes reachable this turn; ent
 function routeDist(targets) { // steps from every sea route to the nearest target route
   const dist = {}, q = [...targets];
   targets.forEach(e => { dist[e] = 0; });
-  while (q.length) { const e = q.shift(); for (const x of routeNbrs(e)) if (dist[x] === undefined) { dist[x] = dist[e] + 1; q.push(x); } }
+  for (let qi = 0; qi < q.length; qi++) { const e = q[qi]; for (const x of routeNbrs(e)) if (dist[x] === undefined) { dist[x] = dist[e] + 1; q.push(x); } }
   return dist;
 }
 const cornerOf = (s, hexes) => [EDGE[s.e].a, EDGE[s.e].b].some(v => VERT[v].hexes.some(h => hexes.includes(+h)));
@@ -4294,14 +4303,14 @@ function vScore(v, i, pr = production(i)) {
   return s + kinds.size * (hard ? 2 : 1.5) + (pt ? (pt === 'any' ? 1 : pr[pt] >= 5 ? (hard ? 4 : 3) : 0.5) : 0);
 }
 const edgeKind = (i, e) => G.players[i].roads && canRoad(e, i) ? 'road' : 'ship';
-function aiGoal(i) {
+function aiGoal(i, rt) { // rt: a road target already worked out by the caller, to avoid searching twice
   const p = G.players[i], opts = [];
-  if (p.settlements > 0 && settleSpots(i).length) opts.push('settlement');
-  if (p.cities > 0 && citySpots(i).length) opts.push('city');
+  if (p.settlements > 0 && anySettle(i)) opts.push('settlement');
+  if (p.cities > 0 && anyCity(i)) opts.push('city');
   if (opts.length) return opts.sort((a, b) => missing(i, COST[a]) - missing(i, COST[b]))[0];
-  if (p.roads + p.ships > 0 && p.settlements > 0) { const t = aiRoadTarget(i); if (t !== null) return edgeKind(i, t); }
+  if (p.roads + p.ships > 0 && p.settlements > 0) { const t = rt === undefined ? aiRoadTarget(i) : rt; if (t !== null) return edgeKind(i, t); }
   if (G.deck.length) return 'dev';
-  if (p.roads > 0 && roadSpots(i).length) return 'road';
+  if (p.roads > 0 && anyRoad(i)) return 'road';
   return null;
 }
 function buildEdge(i, e) { if (edgeKind(i, e) === 'road') buildRoad(i, e); else buildShip(i, e); }
@@ -4323,7 +4332,7 @@ function aiSetupRoad(i, v) {
 // ponytail: after the first step the search ignores that roads and ships only join at a settlement; fine for route planning.
 function aiRoadTarget(i) {
   const pr = production(i), p = G.players[i], sea = G.cfg.sea;
-  const start = VERT.map((_, v) => v).filter(v => { const b = G.bld[v]; return b ? b.p === i : VERT[v].edges.some(e => G.road[e] === i || G.ship[e] === i); });
+  const start = idxWhere(VERT.length, v => { const b = G.bld[v]; return b ? b.p === i : VERT[v].edges.some(e => G.road[e] === i || G.ship[e] === i); });
   const seen = new Set(start);
   let frontier = start.map(v => ({v, first: null})), target = null, bestS = 0;
   for (let d = 1; d <= (sea ? 7 : 5) && frontier.length; d++) {
@@ -4344,8 +4353,8 @@ function aiRoadTarget(i) {
   }
   return target;
 }
-function aiRoadPick(i) {
-  const t = aiRoadTarget(i);
+function aiRoadPick(i, rt) {
+  const t = rt === undefined ? aiRoadTarget(i) : rt;
   if (t !== null) return t;
   const opts = [...roadSpots(i), ...(G.players[i].ships ? shipSpots(i) : [])];
   return best(opts, e => { G.road[e] = i; const l = roadLength(i); G.road[e] = null; return l + RNG() * 0.1; });
@@ -4560,11 +4569,11 @@ async function aiTurn(i, paired) {
     if (!G.devPlayed && await aiMaybeDev(i)) { render(); if (checkWin()) return; continue; }
     if (scen().ai && await scen().ai(i)) { render(); if (checkWin()) return; continue; }
     if (G.ck && await aiCK(i)) { render(); if (checkWin()) return; continue; }
-    const goal = aiGoal(i), expand = aiRoadTarget(i);
+    const expand = aiRoadTarget(i), goal = aiGoal(i, expand);
     if (goal && goal !== 'dev' && can(i, goal)) {
       if (goal === 'settlement') buildSettlement(i, best(settleSpots(i), v => vScore(v, i) + RNG() * NOISE[diffOf(i)]));
       else if (goal === 'city') buildCity(i, best(citySpots(i), v => vScore(v, i)));
-      else buildEdge(i, aiRoadPick(i));
+      else buildEdge(i, aiRoadPick(i, expand));
     } else if (goal !== 'road' && goal !== 'ship' && p.settlements > 0 && !settleSpots(i).length && expand !== null && can(i, edgeKind(i, expand)) && spare(i, goal, COST[edgeKind(i, expand)])) {
       buildEdge(i, expand);
     } else if (can(i, 'dev') && (goal === 'dev' || spare(i, goal, COST.dev))) {
@@ -4972,15 +4981,19 @@ function renderSeats() {
     if (lastVp[i] !== undefined && lastVp[i] !== v) { vpEl.classList.remove('pop'); vpEl.getBoundingClientRect(); vpEl.classList.add('pop'); }
     lastVp[i] = v; q('.vp b').textContent = v;
     const imp = G.ck ? `<span title="City improvements: trade, politics, science">${TRACKS.map(t => `<span class="impips" style="--tc:${TRACK_COLOR[t]}">${[1, 2, 3, 4, 5].map(n => `<i${n <= p.imp[t] ? ' class="on"' : ''}></i>`).join('')}</span>`).join(' ')}</span>` : '';
-    q('.meta').innerHTML = `<span>${G.ck ? `Knights ${knightStrength(i, true)}/${knightStrength(i)}` : `Knights ${p.knights}`}</span>${imp}<span>${G.cfg.sea ? 'Route' : 'Road'} ${p.roadLen}</span>${p.isles.length ? `<span>Islands ${p.isles.length}</span>` : ''}${scen().gold ? `<span class="goldtag">Gold ${p.gold}</span>` : ''}${scen().meta?.(i) || ''}${i === HUMAN ? `<span>Left: ${p.roads} roads${G.cfg.sea ? ` · ${p.ships} ships` : ''} · ${p.settlements} settlements · ${p.cities} cities</span>` : ''}`;
+    const meta = `<span>${G.ck ? `Knights ${knightStrength(i, true)}/${knightStrength(i)}` : `Knights ${p.knights}`}</span>${imp}<span>${G.cfg.sea ? 'Route' : 'Road'} ${p.roadLen}</span>${p.isles.length ? `<span>Islands ${p.isles.length}</span>` : ''}${scen().gold ? `<span class="goldtag">Gold ${p.gold}</span>` : ''}${scen().meta?.(i) || ''}${i === HUMAN ? `<span>Left: ${p.roads} roads${G.cfg.sea ? ` · ${p.ships} ships` : ''} · ${p.settlements} settlements · ${p.cities} cities</span>` : ''}`;
+    if (q('.meta')._html !== meta) q('.meta').innerHTML = q('.meta')._html = meta;
     const badges = (G.lr === i ? `<span class="badge">${LR_NAME()}</span>` : '') + (G.la === i ? '<span class="badge">Largest Army</span>' : '');
     if (q('.badges')._html !== badges) q('.badges').innerHTML = q('.badges')._html = badges; // compare what we wrote: the page may show it translated
     if (i === HUMAN) return;
     const special = G.ck ? p.prog.map(c => PDECK[c.t]) : p.dev.map(() => 'dev'); // progress card backs show their deck colour
-    const [rs, rw] = backs(sum(p.res), ''), [ds, dw] = backs(special.length, 'dev');
-    q('.fan.res').innerHTML = rs; q('.fan.res').style.width = (sum(p.res) ? rw : 0) + 'px';
-    q('.fan.dev').innerHTML = G.ck ? ds.replace(/mback dev/g, () => `mback ${special.shift()}`) : ds; q('.fan.dev').style.width = ((G.ck ? p.prog.length : p.dev.length) ? dw : 0) + 'px';
-    q('.count').textContent = `${sum(p.res)} card${sum(p.res) === 1 ? '' : 's'} · ${G.ck ? `${p.prog.length} progress` : `${p.dev.length} dev`}`;
+    const held = sum(p.res);
+    const [rs, rw] = backs(held, ''), [ds, dw] = backs(special.length, 'dev');
+    const res = q('.fan.res'), dev = q('.fan.dev');
+    if (res._html !== rs) { res.innerHTML = res._html = rs; res.style.width = (held ? rw : 0) + 'px'; }
+    const ds2 = G.ck ? ds.replace(/mback dev/g, () => `mback ${special.shift()}`) : ds;
+    if (dev._html !== ds2) { dev.innerHTML = dev._html = ds2; dev.style.width = ((G.ck ? p.prog.length : p.dev.length) ? dw : 0) + 'px'; }
+    q('.count').textContent = `${held} card${held === 1 ? '' : 's'} · ${G.ck ? `${p.prog.length} progress` : `${p.dev.length} dev`}`;
   });
 }
 function renderHand() {
