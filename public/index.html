@@ -521,6 +521,9 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .cardrow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px}
 .cardrow .cardbox{--cw:54px}
 #status #bTakeover{margin-left:8px}
+.langseg{justify-content:center;margin:4px auto 0}
+.langseg button{font-size:14px;min-width:0;padding:6px 14px}
+:lang(es) .seat.offline .tagai::after{content:" · desconectado"}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -561,6 +564,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <div class="status" id="status" aria-live="polite"></div>
     <div class="bank" id="bank" title="Cards left in the bank"></div>
     <div class="tools">
+      <select id="langSel" aria-label="Language" title="Language" data-notr><option value="en">EN</option><option value="es">ES</option></select>
       <label for="speed">Speed</label>
       <select id="speed"><option value="2.6">Very slow</option><option value="1.7">Slow</option><option value="1" selected>Normal</option><option value="0.5">Fast</option><option value="0.12">Turbo</option></select>
       <button class="btn sm" id="bLog">Chronicle</button>
@@ -647,6 +651,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
         <button class="btn big" data-go="learn">Tutorials &amp; rules</button>
         <button class="btn" id="mLeaveOn" hidden>Leave online game</button>
       </div>
+      <div class="seg langseg" role="radiogroup" aria-label="Language" data-notr><button data-lang="en" role="radio">English</button><button data-lang="es" role="radio">Español</button></div>
       <p class="fine">Unofficial fan clone of the CATAN board game rules. Not affiliated with CATAN GmbH.</p>
     </section>
     <section class="mview" data-view="setup" hidden>
@@ -701,10 +706,83 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 <div class="modal" id="modal" hidden><div class="modal-box" id="modalBox" role="dialog" aria-modal="true"></div></div>
 
 <script>
+// ===== i18n-es BEGIN: Spanish for everything the page shows (used by tr() below) =====
+window.ES_EXACT = {};
+window.ES_RULES = [];
+// ===== i18n-es END =====
+</script>
+<script>
 // ===== language: English or Spanish. Game state and network messages stay in English; only what people read changes. =====
 let LANG = (() => { try { const s = localStorage.getItem('catan.lang'); if (s === 'en' || s === 'es') return s; } catch { /* private mode */ } return /^es\b/i.test(navigator.language || '') ? 'es' : 'en'; })();
 const L = (en, es) => LANG === 'es' ? es : en; // new text gives both versions at the call site
 const store = {get: k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set: (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch { /* private mode */ } }}; // per-device settings
+// The game writes English everywhere. In Spanish a watcher swaps every text and label the page shows for its translation
+// (ES_EXACT: whole strings, ES_RULES: patterns for text built on the fly), and remembers the English to swap it back.
+const I18N_ATTRS = ['title', 'placeholder', 'aria-label', 'data-hint'], I18N_SKIP = 'script,style,textarea,input,[data-notr],#chatLog,#gChatLog';
+const i18nMemo = new Map(), i18nOrig = new WeakMap(); // english -> spanish; node -> {src, out} (attributes: element -> {attr: {src, out}})
+function tr(s) {
+  if (LANG !== 'es' || !s || !/[A-Za-z]/.test(s)) return s;
+  let out = i18nMemo.get(s);
+  if (out !== undefined) return out;
+  const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s), core = m[2];
+  let t = (window.ES_EXACT || {})[core];
+  if (t === undefined) { t = core; for (const [re, rep] of window.ES_RULES || []) t = t.replace(re, rep); }
+  out = m[1] + t + m[3];
+  if (i18nMemo.size > 6000) i18nMemo.clear();
+  i18nMemo.set(s, out); return out;
+}
+function i18nNode(n) {
+  if (n.nodeType === 3) {
+    if (!n.parentElement || n.parentElement.closest(I18N_SKIP)) return;
+    const cur = n.nodeValue, o = i18nOrig.get(n);
+    if (o && cur === o.out) return; // our own translation
+    const out = tr(cur); i18nOrig.set(n, {src: cur, out});
+    if (out !== cur) n.nodeValue = out;
+  } else if (n.nodeType === 1) {
+    if (n.closest(I18N_SKIP)) return;
+    for (const a of I18N_ATTRS) i18nAttr(n, a);
+    const w = document.createTreeWalker(n, 5); // elements and text
+    for (let c = w.nextNode(); c; c = w.nextNode()) {
+      if (c.nodeType === 1) { if (c.matches(I18N_SKIP)) continue; for (const a of I18N_ATTRS) if (c.hasAttribute(a)) i18nAttr(c, a); }
+      else i18nNode(c);
+    }
+  }
+}
+function i18nAttr(el, a) {
+  const cur = el.getAttribute(a); if (cur == null) return;
+  let o = i18nOrig.get(el); if (!o) i18nOrig.set(el, o = {});
+  if (o[a] && cur === o[a].out) return;
+  const out = tr(cur); o[a] = {src: cur, out};
+  if (out !== cur) el.setAttribute(a, out);
+}
+function i18nAll() { // after a language switch: start again from the remembered English
+  const w = document.createTreeWalker(document.body, 5);
+  for (let c = w.nextNode(); c; c = w.nextNode()) {
+    const o = i18nOrig.get(c); if (!o) continue;
+    if (c.nodeType === 3) { if (c.nodeValue === o.out) c.nodeValue = o.src; i18nOrig.delete(c); }
+    else for (const a in o) if (c.getAttribute(a) === o[a].out) c.setAttribute(a, o[a].src);
+    if (c.nodeType === 1) i18nOrig.delete(c);
+  }
+  i18nNode(document.body);
+}
+new MutationObserver(recs => {
+  for (const r of recs) {
+    if (r.type === 'characterData') i18nNode(r.target);
+    else if (r.type === 'attributes') { if (!r.target.closest(I18N_SKIP)) i18nAttr(r.target, r.attributeName); }
+    else r.addedNodes.forEach(i18nNode);
+  }
+}).observe(document.body, {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: I18N_ATTRS});
+document.documentElement.lang = LANG;
+i18nNode(document.body);
+function setLang(l) {
+  if (l !== 'en' && l !== 'es') return;
+  LANG = l; store.set('catan.lang', l); document.documentElement.lang = l; i18nMemo.clear();
+  langUI(); i18nAll();
+}
+function langUI() { document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-checked', b.dataset.lang === LANG)); document.getElementById('langSel').value = LANG; }
+document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+document.getElementById('langSel').addEventListener('change', e => setLang(e.target.value));
+langUI();
 // ===== constants =====
 const RES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
 let KINDS = RES; // card kinds in play: resources, plus commodities in Cities & Knights
@@ -3490,7 +3568,7 @@ function renderSeats() {
     const imp = G.ck ? `<span title="City improvements: trade, politics, science">${TRACKS.map(t => `<span class="impips" style="--tc:${TRACK_COLOR[t]}">${[1, 2, 3, 4, 5].map(n => `<i${n <= p.imp[t] ? ' class="on"' : ''}></i>`).join('')}</span>`).join(' ')}</span>` : '';
     q('.meta').innerHTML = `<span>${G.ck ? `Knights ${knightStrength(i, true)}/${knightStrength(i)}` : `Knights ${p.knights}`}</span>${imp}<span>${G.cfg.sea ? 'Route' : 'Road'} ${p.roadLen}</span>${p.isles.length ? `<span>Islands ${p.isles.length}</span>` : ''}${scen().gold ? `<span class="goldtag">Gold ${p.gold}</span>` : ''}${scen().meta?.(i) || ''}${i === HUMAN ? `<span>Left: ${p.roads} roads${G.cfg.sea ? ` · ${p.ships} ships` : ''} · ${p.settlements} settlements · ${p.cities} cities</span>` : ''}`;
     const badges = (G.lr === i ? `<span class="badge">${LR_NAME()}</span>` : '') + (G.la === i ? '<span class="badge">Largest Army</span>' : '');
-    if (q('.badges').innerHTML !== badges) q('.badges').innerHTML = badges;
+    if (q('.badges')._html !== badges) q('.badges').innerHTML = q('.badges')._html = badges; // compare what we wrote: the page may show it translated
     if (i === HUMAN) return;
     const special = G.ck ? p.prog.map(c => PDECK[c.t]) : p.dev.map(() => 'dev'); // progress card backs show their deck colour
     const [rs, rw] = backs(sum(p.res), ''), [ds, dw] = backs(special.length, 'dev');
@@ -3582,7 +3660,7 @@ function renderActions() {
   document.querySelectorAll('[data-build]').forEach(b => { if (hide.includes(b.dataset.build)) b.hidden = true; });
   const scb = scen().buttons || [];
   const scHTML = scb.map(b => `<button class="btn bbtn" data-sc="${b.id}" title="${b.title}"${myTurn('main') && b.can(HUMAN) ? '' : ' disabled'}><svg><use href="#${b.icon}"/></svg><span class="lbl">${b.label}</span><span class="cost">${b.cost || ''}</span></button>`).join('');
-  if ($('#scBtns').innerHTML !== scHTML) $('#scBtns').innerHTML = scHTML;
+  if ($('#scBtns')._html !== scHTML) $('#scBtns').innerHTML = $('#scBtns')._html = scHTML;
   const shown = document.querySelectorAll('.builds .bbtn:not([hidden])').length;
   $('.builds').style.gridTemplateColumns = `repeat(${shown > 6 ? 4 : shown > 4 ? 3 : 4}, minmax(0, 1fr))`;
   $('#bTrade').disabled = !myTurn('main') || G.moving;
@@ -4244,7 +4322,7 @@ $('#oCreate').addEventListener('click', () => onlineStart({t: 'create', cfg: cfg
 $('#oJoin').addEventListener('click', () => { const c = $('#oCode').value.trim().toUpperCase(); if (c.length !== 4) return oErr('Room codes have 4 letters.'); ON.code = ''; onlineStart({t: 'join', room: c, from: -1}); });
 $('#oCode').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); });
 $('#oCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('#oJoin').click(); });
-$('#mLeaveOn').addEventListener('click', () => { if (confirm('Leave this online game? Your seat stays reserved, so you can rejoin from the same device.')) { const room = ON.code; onlineLeave(true); store.set('catan.room', room); location.reload(); } });
+$('#mLeaveOn').addEventListener('click', () => { if (confirm(tr('Leave this online game? Your seat stays reserved, so you can rejoin from the same device.'))) { const room = ON.code; onlineLeave(true); store.set('catan.room', room); location.reload(); } });
 function refreshHome() {
   const r = store.get('catan.room');
   $('#mRejoin').hidden = !r || !!NET; $('#mRejoin').textContent = `Rejoin room ${r}`;
