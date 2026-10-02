@@ -32,7 +32,7 @@ select{font:500 13px Fredoka,sans-serif;color:var(--ink);background:rgba(255,255
 select option{background:#0b2a3d}
 
 /* ---------- table ---------- */
-.table{position:relative;isolation:isolate;overflow:hidden;height:100%;min-height:640px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+.table{position:relative;isolation:isolate;overflow:hidden;height:100%;min-height:640px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;
   background:radial-gradient(120% 90% at 50% 42%,#18668a 0%,#0c3b57 46%,#051624 100%)}
 .table::before{content:"";position:absolute;inset:-60%;z-index:-1;pointer-events:none;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.04) 0 7deg,transparent 7deg 20deg);animation:spin 160s linear infinite}
 .table::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(0,0,0,.5) 100%)}
@@ -565,6 +565,119 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .cardrow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px}
 .cardrow .cardbox{--cw:54px}
 #status #bTakeover{margin-left:8px}
+/* ---------- responsive: nothing may run off the screen, on any phone, tablet or desktop ---------- */
+.sname{flex-wrap:wrap;row-gap:2px;min-width:0}
+.sname .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tagai{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.tools{flex-wrap:wrap;min-width:0}
+.status>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
+.status .btn{flex:none}
+.topbar>*{min-width:0}
+.banner{max-width:calc(100% - 16px);white-space:normal;text-align:center;text-wrap:balance}
+.toast{max-width:calc(100vw - 24px);white-space:normal;text-align:center}
+.selbar{max-width:calc(100vw - 16px);white-space:normal}
+.barb{max-width:calc(100% - 8px);white-space:normal;flex-wrap:wrap;justify-content:center}
+.modal-box{max-height:calc(100dvh - 24px)}
+.lseat .txt{width:min(150px,100%)}
+.lseat select{max-width:100%;min-width:0}
+.joinrow .txt.code{flex:none}
+@media (max-width:860px){
+  #bExitFull{top:max(8px,env(safe-area-inset-top));right:8px;min-height:40px;min-width:40px;padding:8px 12px;font-size:13px}
+  .topbar{padding:8px 10px 4px;gap:6px 8px}
+  .status{flex:1 1 100%;order:3;font-size:14px;min-height:36px;padding:4px 6px 4px 12px}
+  .tools{gap:6px}
+  .seat .sname{font-size:14px}
+  .seat .tagai{font-size:9px;padding:1px 5px}
+  .mid{padding-inline:10px}
+  .bottom{padding:44px 10px 10px}
+}
+@media (min-width:861px) and (max-width:1300px){
+  .seats.left .seat,.seats.right .seat{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"av vp" "info info" "fans fans" "count count";gap:4px 8px}
+}
+@media (min-width:601px) and (max-width:860px){
+  .bottom{grid-template-columns:minmax(0,1fr) minmax(300px,1.3fr);align-items:stretch}
+  .handwrap{grid-column:1 / -1}
+  .seat .fans{display:none}
+  .board-cell{aspect-ratio:auto;height:min(calc((100vw - 20px) / var(--ar,1.15)),max(360px,calc(100dvh - 600px)))}
+}
+@media (max-width:600px){
+  .brand small{display:none}
+  .brand h1{font-size:18px}
+  .brand svg{width:28px;height:28px}
+  .tools label[for=speed]{display:none}
+  .tools .btn.sm{padding:6px 8px;font-size:12px}
+  .tools select{padding:5px 6px;font-size:12px}
+  .bank{padding:4px 8px;font-size:12px;gap:5px}
+  .seat,.seats.top .seat{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"av vp" "info info" "count count";padding:6px 8px}
+  .seat .fans{display:none}
+  .seat .meta{gap:0 6px}
+  .seat .avatar{--s:30px;font-size:13px}
+  .seat .vp b{font-size:20px}
+  .seat .vp small{font-size:8px}
+  #me{padding:8px 10px}
+  #me .meta{font-size:12px}
+  .actions{padding:8px;gap:6px}
+  .bbtn .lbl{font-size:11px}
+  .btn.big{font-size:16px;padding:13px 16px}
+  .mview{padding:18px 14px}
+  .mview h2{font-size:24px}
+  .modal-box{padding:16px 14px}
+  .modes button small{display:none}
+  .joinrow .btn.big{padding-inline:14px}
+  #bExitFull .xl{display:none}
+}
+@media (max-width:360px){
+  .builds,.builds.sea{gap:4px}
+  .bbtn{padding:6px 2px 5px}
+  .arow .btn{padding-inline:8px}
+}
+/* phones held sideways: board on the left, my hand and buttons on the right, no page scrolling */
+@media (max-height:520px) and (orientation:landscape){
+  body{overflow:hidden}
+  .table{height:100dvh;min-height:0;grid-template-columns:minmax(0,1fr) minmax(250px,34%);grid-template-rows:auto minmax(0,1fr)}
+  .topbar{grid-column:1 / -1;flex-wrap:nowrap;padding:max(4px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 2px max(8px,env(safe-area-inset-left));gap:6px}
+  .brand div,.bank,.tools label[for=speed]{display:none}
+  .brand svg{width:26px;height:26px}
+  .status{flex:1 1 auto;order:0;min-height:30px;font-size:13px;padding:2px 4px 2px 10px}
+  .status>span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tools{flex-wrap:nowrap}
+  .tools .btn.sm{padding:5px 7px;font-size:12px}
+  .tools select{padding:4px 5px;font-size:12px}
+  .mid{grid-column:1;grid-row:2;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;padding:2px 4px 4px max(6px,env(safe-area-inset-left));min-height:0}
+  .seats{display:contents}
+  .seat,.seats.top .seat{flex:1 1 0;min-width:0;height:44px;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"av info vp";padding:3px 8px;gap:0 6px;border-radius:12px;transform:none!important}
+  .seat .avatar{--s:28px;font-size:12px;border-width:2px}
+  .seat .fans,.seat .meta,.seat .count,.seat .badges{display:none}
+  .seat .sname{font-size:13px}
+  .seat .vp b{font-size:18px}.seat .vp small{display:none}
+  .active .avatar::after{inset:-5px;border-width:2px}
+  .board-cell{flex:1 1 100%;order:10;height:calc(100% - 48px);aspect-ratio:auto}
+  .ticker li:not(:first-child){display:none}
+  .ticker li{font-size:11px}
+  .table.focus .mid{display:block}
+  .table.focus .board-cell{height:100%}
+  .bottom{grid-column:2;grid-row:2;grid-template-columns:minmax(0,1fr);align-content:end;gap:4px;padding:30px max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) 4px;min-height:0}
+  #me{padding:6px 8px;grid-template-columns:auto minmax(0,1fr) auto}
+  #me .avatar{--s:34px;font-size:15px}
+  #me .meta{font-size:11px}
+  .handwrap{order:-1;height:104px}
+  :root{--cw:54px;--ch:78px}
+  .front .dx{display:none}
+  .actions{position:static;padding:6px;gap:5px;background:var(--glass);border-radius:14px}
+  .die{width:30px;height:30px}.evd{width:30px;height:30px}
+  .dsum{font-size:20px;min-width:24px}
+  .arow .btn{padding:8px}
+  .bbtn{padding:4px 2px}.bbtn>svg{width:20px;height:20px}.bbtn .lbl{font-size:10.5px}
+  #bEnd{padding:8px}
+  .banner{font-size:22px;padding:8px 18px}.banner.big{font-size:28px}.banner.sm{font-size:16px}
+  .zoom .btn{min-width:38px;min-height:36px;font-size:15px}
+  .coach{width:min(300px,calc(100% - 8px));padding:10px 12px}.coach p{font-size:13.5px}
+  .menu{padding:10px}
+  .mview{padding:16px}
+  .hero{padding:0}.hero-logo{width:56px;height:56px}.hero h1{font-size:30px;margin:4px 0}.hero p{font-size:14px}
+  .menu-actions{grid-template-columns:repeat(2,minmax(0,1fr));max-width:520px;margin:12px auto 6px}
+  .btn.big{font-size:15px;padding:11px 14px}
+}
 .langseg{justify-content:center;margin:4px auto 0}
 .langseg button{font-size:14px;min-width:0;padding:6px 14px}
 :lang(es) .seat.offline .tagai::after{content:" · desconectado"}
@@ -682,7 +795,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   </footer>
 </div>
 <aside class="drawer" id="drawer" aria-label="Chronicle"><header><h2>Chronicle</h2><button class="btn sm" id="bLogClose">Close</button></header><ol id="log"></ol><div class="chatbox game" id="gChatBox" hidden><h3>Table chat</h3><ol id="gChatLog"></ol><form id="gChatForm" autocomplete="off"><input class="txt" id="gChatIn" maxlength="300" placeholder="Say something…" aria-label="Chat message"><button class="btn sm">Send</button></form></div></aside>
-<button class="btn gold" id="bExitFull" hidden aria-label="Exit fullscreen">✕ Exit fullscreen</button>
+<button class="btn gold" id="bExitFull" hidden aria-label="Exit fullscreen">✕<span class="xl"> Exit fullscreen</span></button>
 <div class="menu" id="menu">
   <div class="menu-inner">
     <section class="mview" data-view="home">
@@ -3690,7 +3803,7 @@ const spin = [0, 0];
 // Opponents sit clockwise from you: left column (bottom to top), top row, right column (top to bottom).
 const SEAT_LAYOUT = {2: [[1], [], [2]], 3: [[1], [2], [3]], 4: [[1], [2, 3], [4]], 5: [[2, 1], [3], [4, 5]]};
 function buildSeats() {
-  const seat = i => `<section class="seat" id="seat${i}" style="--pc:${G.players[i].color}">${avatarHTML(i)}<div class="sinfo"><div class="sname">${G.players[i].name}<span class="tagai">${G.players[i].ai ? `AI · ${G.players[i].diff}` : 'Player'}</span></div><div class="meta"></div><div class="badges"></div></div><div class="vp"><b></b><small>VP</small></div><div class="fans"><div class="fan res"></div><div class="fan dev"></div></div><div class="count"></div></section>`;
+  const seat = i => `<section class="seat" id="seat${i}" style="--pc:${G.players[i].color}">${avatarHTML(i)}<div class="sinfo"><div class="sname"><span class="nm">${G.players[i].name}</span><span class="tagai">${G.players[i].ai ? `AI · ${G.players[i].diff}` : 'Player'}</span></div><div class="meta"></div><div class="badges"></div></div><div class="vp"><b></b><small>VP</small></div><div class="fans"><div class="fan res"></div><div class="fan dev"></div></div><div class="count"></div></section>`;
   SEAT_LAYOUT[G.n - 1].forEach((ids, k) => { $(['#colL', '#rowT', '#colR'][k]).innerHTML = ids.map(id => seat((HUMAN + id) % G.n)).join(''); }); // I always sit at the bottom
   $('#me').style.setProperty('--pc', G.players[HUMAN].color);
   $('#me').innerHTML = `${avatarHTML(HUMAN, 'big')}<div class="sinfo"><div class="sname">${G.players[HUMAN].name === 'You' ? 'You' : G.players[HUMAN].name + ' (you)'}</div><div class="meta"></div><div class="badges"></div></div><div class="vp" title="Includes your secret Victory Point cards"><b></b><small>VP</small></div>`;
