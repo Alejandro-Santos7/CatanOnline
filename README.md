@@ -33,6 +33,16 @@ Keep the game files served by the same server (default). To host the HTML elsewh
 - `DATA_FILE` — optional path; rooms are saved there (about a second after each move, and on Ctrl+C) so games
   survive a server restart
 
+## Look and feel
+
+A medieval table: an oak top lit by torches, leather panels with brass studs, heraldic shields for the players,
+Cinzel and Alegreya type (loaded from Google Fonts; plain serif fonts are used if they cannot load).
+
+The board is a tilted 3D table: raised hex slabs, standing forests, windmills, kilns and mountains, cottages that
+grow into castles, cogs for ships and a wooden rail around the sea. It is still plain SVG, so there is nothing to install.
+The **3D** button next to the zoom controls flips to a flat top-down view (handy on a slow phone). The choice is kept in
+the browser and is purely visual: it never affects the shared game or other players.
+
 ## Things to know
 
 - Lockstep design: each browser holds the whole game state, so it is trust-based (a tech-savvy friend
