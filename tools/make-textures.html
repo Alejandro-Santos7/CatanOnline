@@ -1,0 +1,111 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hexland textures</title>
+<!--
+  Generates the seamless textures that index.html embeds (board terrain, sea, cliffs, wood, stone, roof tiles, table,
+  leather, parchment). Procedural: tileable value noise -> height map -> lit from the top-left -> colour ramp, plus
+  hand-scattered details (grass blades, cracks, flecks...). Nothing here ships to players: open this page in a browser,
+  it fills window.TEX with data URLs (name -> image). Re-embed them with the snippet at the bottom of the page.
+-->
+<body style="background:#222;color:#ddd;font:13px system-ui;margin:0;padding:12px">
+<h3 style="margin:0 0 8px">Hexland textures <small id="total"></small></h3>
+<div id="out" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+<script>
+const TEX = {}, SIZE = {};
+// ---------- tileable noise ----------
+const rng = seed => { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
+const lats = new Map();
+const lat = (seed, nx, ny) => { const k = seed + ':' + nx + ':' + ny; let g = lats.get(k); if (!g) { const r = rng(seed * 7919 + nx * 31 + ny); g = new Float32Array(nx * ny); for (let i = 0; i < g.length; i++) g[i] = r(); lats.set(k, g); } return g; };
+const vn = (seed, nx, ny, u, v) => { // u, v wrap in [0,1)
+  const g = lat(seed, nx, ny), fx = u * nx, fy = v * ny, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+  const xa = ((x0 % nx) + nx) % nx, xb = (xa + 1) % nx, ya = ((y0 % ny) + ny) % ny, yb = (ya + 1) % ny;
+  const a = g[ya * nx + xa], b = g[ya * nx + xb], c = g[yb * nx + xa], d = g[yb * nx + xb];
+  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+};
+const fbm = (seed, u, v, bx, by, oct = 4, gain = .5) => { let s = 0, amp = 1, tot = 0; for (let o = 0; o < oct; o++) { s += amp * vn(seed + o * 17, bx << o, by << o, u, v); tot += amp; amp *= gain; } return s / tot; };
+const ridged = (seed, u, v, bx, by, oct = 4) => { let s = 0, amp = 1, tot = 0; for (let o = 0; o < oct; o++) { s += amp * (1 - Math.abs(2 * vn(seed + o * 13, bx << o, by << o, u, v) - 1)); tot += amp; amp *= .5; } return s / tot; };
+const lerp = (a, b, t) => a + (b - a) * t;
+const ramp = (stops, t) => { t = Math.max(0, Math.min(1, t)); for (let i = 1; i < stops.length; i++) if (t <= stops[i][0]) { const [t0, c0] = stops[i - 1], [t1, c1] = stops[i], k = (t - t0) / (t1 - t0 || 1); return [lerp(c0[0], c1[0], k), lerp(c0[1], c1[1], k), lerp(c0[2], c1[2], k)]; } return stops[stops.length - 1][1]; };
+// ---------- pipeline: height -> lit colour ----------
+function lit(w, h, height, color, o = {}) {
+  const { light = 2.5, L = [-.55, -.62, .56] } = o, H = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) H[y * w + x] = height(x / w, y / h, x, y);
+  const img = new ImageData(w, h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const hx = (H[y * w + (x + 1) % w] - H[y * w + (x - 1 + w) % w]) * light * w / 128, hy = (H[((y + 1) % h) * w + x] - H[((y - 1 + h) % h) * w + x]) * light * w / 128;
+    const sh = Math.max(.25, (-hx * L[0] - hy * L[1] + L[2]) / Math.sqrt(hx * hx + hy * hy + 1) / L[2]), c = color(H[y * w + x], x / w, y / h, sh), i = (y * w + x) * 4;
+    img.data[i] = Math.min(255, c[0] * sh); img.data[i + 1] = Math.min(255, c[1] * sh); img.data[i + 2] = Math.min(255, c[2] * sh); img.data[i + 3] = c[3] ?? 255;
+  }
+  return img;
+}
+function overlay(w, h, height, k = 1.6, light = 3) { // grey relief as translucent white/black (tints whatever is under it)
+  const H = new Float32Array(w * h), img = new ImageData(w, h), L = [-.55, -.62, .56];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) H[y * w + x] = height(x / w, y / h, x, y);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const hx = (H[y * w + (x + 1) % w] - H[y * w + (x - 1 + w) % w]) * light * w / 128, hy = (H[((y + 1) % h) * w + x] - H[((y - 1 + h) % h) * w + x]) * light * w / 128;
+    const s = ((-hx * L[0] - hy * L[1] + L[2]) / Math.sqrt(hx * hx + hy * hy + 1) / L[2] - 1) * k, i = (y * w + x) * 4, v = s > 0 ? 255 : 0;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = Math.min(255, Math.abs(s) * 255);
+  }
+  return img;
+}
+function canvas(w, h, img) { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); if (img) g.putImageData(img, 0, 0); return [c, g]; }
+const wrap = (w, h, fn) => { for (let dy = -h; dy <= h; dy += h) for (let dx = -w; dx <= w; dx += w) fn(dx, dy); };
+function done(name, c) { TEX[name] = c.toDataURL('image/webp', .82); SIZE[name] = Math.round(TEX[name].length * .75 / 1024); const d = document.createElement('div'); d.innerHTML = `<div>${name} ${c.width}x${c.height} · ${SIZE[name]} KB</div>`; c.style.cssText = `width:${Math.min(c.width, 260)}px;background:#8a8a8a`; d.appendChild(c); document.getElementById('out').appendChild(d); }
+// scatter helpers
+const strokes = (g, w, h, n, seed, fn) => { const r = rng(seed); for (let i = 0; i < n; i++) { const x = r() * w, y = r() * h, a = r(), b = r(), c = r(); wrap(w, h, (dx, dy) => fn(g, x + dx, y + dy, a, b, c, r)); } };
+const crack = (g, w, h, seed, n, dark, lightc) => { const r = rng(seed); for (let i = 0; i < n; i++) { let x = r() * w, y = r() * h, a = r() * 6.28; const pts = [[x, y]]; for (let k = 0; k < 7 + r() * 6; k++) { a += (r() - .5) * 1.2; x += Math.cos(a) * (6 + r() * 10); y += Math.sin(a) * (6 + r() * 10); pts.push([x, y]); }
+  for (const [col, off, lw] of [[lightc, 1, 1], [dark, 0, 1.1]]) wrap(w, h, (dx, dy) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); pts.forEach(([px, py], j) => g[j ? 'lineTo' : 'moveTo'](px + dx + off, py + dy + off)); g.stroke(); }); } };
+
+// ---------- terrain tops (opaque) ----------
+{ const [c, g] = canvas(256, 256, lit(256, 256, (u, v) => fbm(1, u, v, 4, 4, 5) * .65 + fbm(9, u, v, 22, 22, 2) * .35, (h, u, v) => ramp([[0, [44, 94, 26]], [.5, [92, 150, 48]], [1, [170, 208, 92]]], h + (fbm(3, u, v, 3, 3, 3) - .5) * .5), { light: 2.4 }));
+  strokes(g, 256, 256, 1500, 11, (g, x, y, a, b, c2, r) => { g.strokeStyle = b > .5 ? 'rgba(196,232,118,.5)' : 'rgba(34,80,20,.45)'; g.lineWidth = 1; const l = 5 + a * 7, an = -Math.PI / 2 + (c2 - .5) * 1.1; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(an) * l * .5 + 1.5, y + Math.sin(an) * l * .5, x + Math.cos(an) * l, y + Math.sin(an) * l); g.stroke(); });
+  strokes(g, 256, 256, 14, 12, (g, x, y, a) => { g.fillStyle = a > .5 ? 'rgba(255,255,240,.85)' : 'rgba(255,224,90,.8)'; g.beginPath(); g.arc(x, y, 1.2, 0, 7); g.fill(); });
+  done('grass', c); }
+{ const [c, g] = canvas(256, 256, lit(256, 256, (u, v) => fbm(2, u, v, 5, 5, 5) * .7 + fbm(19, u, v, 30, 30, 2) * .3, (h, u, v) => { const t = fbm(21, u, v, 3, 3, 3), c0 = ramp([[0, [30, 72, 34]], [.5, [48, 110, 50]], [1, [82, 144, 64]]], h), k = Math.max(0, (t - .56) * 3.2); return [lerp(c0[0], 112, k), lerp(c0[1], 78, k), lerp(c0[2], 38, k)]; }, { light: 2.2 }));
+  strokes(g, 256, 256, 1100, 22, (g, x, y, a, b, c2) => { g.strokeStyle = b > .66 ? 'rgba(150,100,48,.5)' : b > .33 ? 'rgba(14,44,20,.5)' : 'rgba(110,170,80,.35)'; g.lineWidth = 1; const an = c2 * 6.28; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(an) * (3 + a * 4), y + Math.sin(an) * (3 + a * 4)); g.stroke(); });
+  done('forest', c); }
+{ const R = 14, [c, g] = canvas(256, 256, lit(256, 256, (u, v) => { const row = (v * R) % 1; return .28 * Math.sin(row * Math.PI) + .72 * fbm(3, u, v, 6, 6, 4); }, (h, u, v) => ramp([[0, [208, 152, 40]], [.5, [236, 184, 64]], [1, [250, 220, 116]]], h * 1.05 + (fbm(5, u, v, 2, 2, 2) - .5) * .35), { light: 2 }));
+  strokes(g, 256, 256, 1700, 31, (g, x, y, a, b, c2) => { const row = Math.floor(y / (256 / R)); y = (row + .5) * 256 / R + (c2 - .5) * 8; g.strokeStyle = b > .5 ? 'rgba(255,236,150,.6)' : 'rgba(150,96,14,.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (a - .5) * 2, y - 4 - a * 4); g.stroke(); });
+  done('field', c); }
+{ const [c, g] = canvas(256, 256, lit(256, 256, (u, v) => fbm(5, u, v, 3, 3, 5) * .6 + ridged(8, u, v, 4, 4, 3) * .4, (h, u, v) => ramp([[0, [128, 52, 24]], [.5, [196, 92, 50]], [1, [228, 140, 88]]], h + (fbm(6, u, v, 2, 2, 3) - .5) * .4), { light: 2.8 }));
+  crack(g, 256, 256, 41, 20, 'rgba(70,24,10,.4)', 'rgba(255,190,150,.16)');
+  strokes(g, 256, 256, 520, 42, (g, x, y, a) => { g.fillStyle = 'rgba(60,20,8,.28)'; g.beginPath(); g.arc(x, y, .7 + a * 1.2, 0, 7); g.fill(); });
+  done('clay', c); }
+{ const [c, g] = canvas(256, 256, lit(256, 256, (u, v) => ridged(14, u, v, 3, 3, 6) * .75 + fbm(15, u, v, 20, 20, 2) * .25, (h, u, v) => { const c0 = ramp([[0, [74, 84, 98]], [.55, [126, 138, 152]], [1, [184, 194, 206]]], h), t = Math.max(0, fbm(7, u, v, 4, 4, 3) - .62) * 2.4; return [lerp(c0[0], 126, t), lerp(c0[1], 142, t), lerp(c0[2], 108, t)]; }, { light: 4.4 }));
+  crack(g, 256, 256, 51, 9, 'rgba(24,30,40,.38)', 'rgba(255,255,255,.14)'); done('rock', c); }
+{ const [c, g] = canvas(256, 256, lit(256, 256, (u, v) => fbm(16, u, v, 2, 2, 4) * .75 + Math.sin((u * 10 + fbm(17, u, v, 3, 3, 3) * 3) * 6.283) * .035 + .1, (h) => ramp([[0, [198, 160, 100]], [.5, [228, 198, 140]], [1, [248, 232, 182]]], h), { light: 2.4 }));
+  strokes(g, 256, 256, 700, 61, (g, x, y, a, b) => { g.fillStyle = b > .5 ? 'rgba(255,250,226,.5)' : 'rgba(128,92,48,.3)'; g.beginPath(); g.arc(x, y, .6 + a, 0, 7); g.fill(); });
+  done('sand', c); }
+{ const [c, g] = canvas(256, 256, lit(256, 256, (u, v) => fbm(18, u, v, 4, 4, 5), (h) => ramp([[0, [96, 78, 50]], [.55, [160, 128, 62]], [1, [216, 176, 70]]], h), { light: 3.2 }));
+  strokes(g, 256, 256, 90, 71, (g, x, y, a, b) => { const s = 1.2 + a * 2.2; g.fillStyle = 'rgba(255,224,110,.9)'; g.beginPath(); g.moveTo(x - s, y + s * .4); g.lineTo(x - s * .2, y - s); g.lineTo(x + s, y - s * .3); g.lineTo(x + s * .6, y + s); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,255,230,.9)'; g.fillRect(x - s * .3, y - s * .6, 1.2, 1.2); });
+  done('gold', c); }
+const waterTex = (name, stops, seed) => { const [c] = canvas(256, 256, lit(256, 256, (u, v) => fbm(seed, u, v, 3, 3, 4), (h, u, v) => { const w1 = fbm(seed + 3, u, v, 4, 4, 3), w2 = fbm(seed + 7, u, v, 4, 4, 3), cs = Math.pow(1 - Math.abs(2 * fbm(seed + 11, u + .16 * w1, v + .16 * w2, 4, 4, 3) - 1), 7), c0 = ramp(stops, h); return [lerp(c0[0], 235, cs * .26), lerp(c0[1], 245, cs * .26), lerp(c0[2], 255, cs * .26)]; }, { light: 1.1 })); done(name, c); };
+waterTex('water', [[0, [10, 66, 104]], [.5, [20, 116, 158]], [1, [44, 152, 188]]], 81);
+waterTex('lake', [[0, [38, 130, 186]], [.5, [74, 170, 214]], [1, [130, 212, 238]]], 91);
+{ const [c, g] = canvas(256, 256, lit(256, 256, (u, v) => fbm(25, u, v, 4, 4, 5), (h, u, v) => { if (h < .4) return [32, 46, 34]; return ramp([[.4, [58, 72, 40]], [.7, [108, 126, 70]], [1, [150, 164, 98]]], h); }, { light: 2 }));
+  strokes(g, 256, 256, 380, 81, (g, x, y, a, b) => { g.strokeStyle = b > .5 ? 'rgba(30,50,20,.5)' : 'rgba(170,190,110,.4)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (a - .5) * 3, y - 5 - a * 6); g.stroke(); });
+  done('swamp', c); }
+// ---------- overlays (translucent, tint what is under them) ----------
+{ const [c] = canvas(128, 64, overlay(128, 64, (u, v) => { const band = Math.sin((v * 9 + fbm(61, u, v, 3, 3, 3) * 1.6) * 6.283) * .5 + .5; return band * .5 + fbm(62, u, v, 12, 24, 4) * .5; }, .55, 2)); done('cliff', c); }
+{ const w = 128, [c, g] = canvas(w, w, overlay(w, w, (u, v) => fbm(63, u, v, 10, 10, 4), .9, 2)), r = rng(5); // ashlar blocks
+  for (let row = 0; row < 4; row++) { const y = row * 32; let x = (row % 2) * 24 - 24; while (x < w) { const bw = 40 + Math.floor(r() * 3) * 8; for (const dx of [0]) { g.fillStyle = r() > .5 ? `rgba(255,255,255,${r() * .14})` : `rgba(0,0,0,${r() * .16})`; g.fillRect(x, y, bw, 32); g.strokeStyle = 'rgba(30,24,16,.6)'; g.lineWidth = 1.6; g.strokeRect(x + .8, y + .8, bw - 1.6, 30.4); g.strokeStyle = 'rgba(255,255,240,.3)'; g.beginPath(); g.moveTo(x + 2, y + 31); g.lineTo(x + 2, y + 2); g.lineTo(x + bw - 2, y + 2); g.stroke(); } x += bw; } }
+  const [c2, g2] = canvas(w, w); wrap(w, w, (dx, dy) => g2.drawImage(c, dx, dy)); done('stone', c2); }
+{ const w = 64, [c, g] = canvas(w, w, overlay(w, w, (u, v) => fbm(64, u, v, 8, 8, 3), .8, 2)), r = rng(9);
+  for (let row = 0; row < 8; row++) for (let k = -1; k < 5; k++) { const x = k * 16 + (row % 2) * 8, y = row * 8; g.fillStyle = r() > .5 ? `rgba(255,255,255,${r() * .16})` : `rgba(0,0,0,${r() * .18})`; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 16, y); g.lineTo(x + 16, y + 4); g.arc(x + 8, y + 4, 8, 0, Math.PI); g.closePath(); g.fill(); g.strokeStyle = 'rgba(20,10,4,.55)'; g.lineWidth = 1; g.beginPath(); g.arc(x + 8, y + 4, 8, 0, Math.PI); g.stroke(); }
+  const [c2, g2] = canvas(w, w); wrap(w, w, (dx, dy) => g2.drawImage(c, dx, dy)); done('roof', c2); }
+{ const [c, g] = canvas(128, 32, overlay(128, 32, (u, v) => fbm(65, u, v, 2, 16, 4), 1.4, 3)), r = rng(3);
+  for (let i = 0; i < 26; i++) { const y = r() * 32; g.strokeStyle = r() > .5 ? 'rgba(0,0,0,.22)' : 'rgba(255,255,255,.16)'; g.lineWidth = .8; wrap(128, 32, (dx, dy) => { g.beginPath(); g.moveTo(dx, y + dy); g.bezierCurveTo(40 + dx, y + dy + (r() - .5) * 2, 90 + dx, y + dy + (r() - .5) * 2, 128 + dx, y + dy); g.stroke(); }); }
+  done('plank', c); }
+// ---------- wood, leather, parchment ----------
+const wood = (name, w, h, planks, stops, seed, lk = 1.6, tv = .28) => { const ph = h / planks, [c, g] = canvas(w, h, lit(w, h, (u, v, x, y) => { const p = Math.floor(y / ph), vv = (v * planks) % 1; return fbm(seed + p * 5, u + p * .37, vv, 2, 36, 4) * .75 + .25 * Math.sin((fbm(seed + 3 + p, u, vv, 2, 6, 3) * 7 + vv * 4) * 6.283) * .5 + .25; }, (hh, u, v, sh) => { const p = Math.floor(v * planks), tone = 1 - tv / 2 + (rng(seed + p * 3)() * tv), c0 = ramp(stops, hh), edge = (v * planks) % 1; const e = edge < .012 || edge > .988 ? .35 : 1; return [c0[0] * tone * e, c0[1] * tone * e, c0[2] * tone * e]; }, { light: lk }));
+  strokes(g, w, h, 6, seed + 9, (g, x, y, a) => { g.strokeStyle = 'rgba(30,14,4,.45)'; g.lineWidth = 1; for (let k = 1; k < 5; k++) { g.beginPath(); g.ellipse(x, y, k * 3.4, k * 1.3, 0, 0, 7); g.stroke(); } });
+  done(name, c); };
+wood('wood', 256, 256, 4, [[0, [44, 24, 10]], [.5, [96, 60, 30]], [1, [150, 100, 54]]], 101);
+wood('walnut', 512, 512, 5, [[0, [38, 21, 10]], [.5, [72, 42, 20]], [1, [104, 64, 33]]], 131, .75, .16);
+{ const [c] = canvas(128, 128, lit(128, 128, (u, v) => { let d = 9; const n = 10, r = rng(7); const pts = []; for (let i = 0; i < n * n; i++) pts.push([((i % n) + r()) / n, (Math.floor(i / n) + r()) / n]); for (const [px, py] of pts) for (const ox of [-1, 0, 1]) for (const oy of [-1, 0, 1]) d = Math.min(d, Math.hypot(u - px - ox, v - py - oy)); return Math.min(1, d * n * .9) + fbm(111, u, v, 20, 20, 2) * .15; }, (h) => ramp([[0, [20, 11, 5]], [.6, [52, 30, 15]], [1, [86, 54, 28]]], 1 - h * .8), { light: 3 })); done('leather', c); }
+{ const [c, g] = canvas(256, 256, lit(256, 256, (u, v) => fbm(121, u, v, 3, 3, 5) * .6 + fbm(122, u, v, 40, 40, 2) * .4, (h, u, v) => { const s = Math.max(0, fbm(123, u, v, 2, 2, 3) - .58) * 2.4; return ramp([[0, [214, 190, 140]], [.6, [240, 224, 180]], [1, [252, 244, 214]]], h).map((x, i) => x - s * [60, 70, 80][i]); }, { light: 1.2 }));
+  strokes(g, 256, 256, 420, 131, (g, x, y, a, b, c2) => { g.strokeStyle = b > .5 ? 'rgba(255,255,240,.35)' : 'rgba(120,90,40,.22)'; g.lineWidth = .8; const an = c2 * 6.28, l = 6 + a * 14; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(an) * l * .5 + 2, y + Math.sin(an) * l * .5, x + Math.cos(an) * l, y + Math.sin(an) * l); g.stroke(); });
+  done('parchment', c); }
+document.getElementById('total').textContent = '· ' + Object.values(SIZE).reduce((a, b) => a + b, 0) + ' KB total';
+window.TEX = TEX; window.SIZE = SIZE; window.READY = true;
+</script>

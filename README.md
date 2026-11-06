@@ -35,13 +35,31 @@ Keep the game files served by the same server (default). To host the HTML elsewh
 
 ## Look and feel
 
-A medieval table: an oak top lit by torches, leather panels with brass studs, heraldic shields for the players,
+A medieval table: a walnut top lit by torches, stitched leather panels, heraldic shields for the players,
 Cinzel and Alegreya type (loaded from Google Fonts; plain serif fonts are used if they cannot load).
 
-The board is a tilted 3D table: raised hex slabs, standing forests, windmills, kilns and mountains, cottages that
-grow into castles, cogs for ships and a wooden rail around the sea. It is still plain SVG, so there is nothing to install.
-The **3D** button next to the zoom controls flips to a flat top-down view (handy on a slow phone). The choice is kept in
-the browser and is purely visual: it never affects the shared game or other players.
+The board is a tilted 3D table: raised hex slabs with textured cliffs, standing forests, windmills, kilns and mountains,
+cottages that grow into castles, cogs for ships, a wooden rail around the sea and clouds drifting over the island.
+Every surface is a real texture (grass, forest floor, wheat, clay, rock, sand, water, wood, stone, roof tiles). It is
+still plain SVG and CSS, so there is nothing to install. The buttons next to the zoom controls:
+
+- **3D** flips to a flat top-down view.
+- **Eco** is the low-power mode: nothing animates continuously and there are no clouds, so phones and tablets run
+  cool. Touch devices start in Eco; flip it off for the full look. The choice is remembered per browser.
+
+Both are purely visual and never affect the shared game or other players.
+
+### Performance
+
+The board is two stacked SVGs: a static one (sea, tiles, harbors) that is never repainted, and a live one (pieces).
+No blur or drop-shadow filters, no animation inside the static layer, and the ambient motion (clouds, torchlight) is
+stepped or GPU-only. Idle CPU dropped from about 240% of a core to about 25%, and to about 0% in Eco.
+
+### Textures
+
+The textures are generated, not hand-drawn. `tools/make-textures.html` builds them (tileable noise, lit from the
+top-left, plus scattered details such as grass blades and cracks). Open it in a browser, copy `window.TEX` and paste
+the entries into the `TEX` block of `public/index.html`. Nothing from `tools/` is loaded when you play.
 
 ## Things to know
 
